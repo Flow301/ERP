@@ -62,18 +62,18 @@ public static class MapsterConfig
         // =====================================================================
         // RETO: InvoiceItem → InvoiceItemDto (una línea)
         // =====================================================================
-        /*TypeAdapterConfig<InvoiceItem, InvoiceItemDto>
+        TypeAdapterConfig<InvoiceItem, InvoiceItemDto>
             .NewConfig()
             // IdProduct, Price y Quantity se copian solos (mismo nombre)
             .Map(dest => dest.ProductName, src => src.Product.ProductName)
             .Map(dest => dest.Subtotal, src => LineSubtotal(src))
             .Map(dest => dest.Tax, src => LineTax(src))       // explícito: en la entidad, Tax es la relación
             .Map(dest => dest.Total, src => LineSubtotal(src) + LineTax(src));
-        */
+
         // =====================================================================
         // RETO: Invoice → InvoiceDetailDto (factura completa)
         // =====================================================================
-        /*TypeAdapterConfig<Invoice, InvoiceDetailDto>
+        TypeAdapterConfig<Invoice, InvoiceDetailDto>
             .NewConfig()
             // IdInvoice e InvoiceDate se copian solos
             .Map(dest => dest.CustomerFullName,
@@ -82,7 +82,7 @@ public static class MapsterConfig
             .Map(dest => dest.Subtotal, src => src.InvoiceItems.Sum(ii => LineSubtotal(ii)))
             .Map(dest => dest.Tax, src => src.InvoiceItems.Sum(ii => LineTax(ii)))
             .Map(dest => dest.Total, src => src.InvoiceItems.Sum(ii => LineSubtotal(ii) + LineTax(ii)));
-        */
+
 
         // =====================================================================
         // Supplier (CRUD)

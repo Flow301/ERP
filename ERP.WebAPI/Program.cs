@@ -1,6 +1,10 @@
+using ERP.Application.Implementation;
+using ERP.Application.Interfaces;
 using ERP.Application.Mapper;
 using ERP.Infraestructure.Data;
 using ERP.Infraestructure.Data.Seed;
+using ERP.Infraestructure.Implementation;
+using ERP.Infraestructure.Interfaces;
 using Mapster;
 using MapsterMapper;
 using Microsoft.EntityFrameworkCore;
@@ -42,6 +46,14 @@ var config = TypeAdapterConfig.GlobalSettings;
 builder.Services.AddSingleton(config);
 builder.Services.AddScoped<IMapper, ServiceMapper>();
 builder.Services.AddMapster();
+
+// Inyección de dependencias: repositorios (Infraestructure) y servicios (Application)
+builder.Services.AddScoped<IProductRepository, ProductRepository>();
+builder.Services.AddScoped<ISupplierRepository, SupplierRepository>();
+builder.Services.AddScoped<IInvoiceRepository, InvoiceRepository>();
+builder.Services.AddScoped<IProductService, ProductService>();
+builder.Services.AddScoped<ISupplierService, SupplierService>();
+builder.Services.AddScoped<IInvoiceService, InvoiceService>();
 
 
 var app = builder.Build();
