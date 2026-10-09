@@ -5,9 +5,8 @@ namespace ERP.Domain.DTO.PatternResult;
 /// </summary>
 public class Result<T> : BaseResult
 {
-    [JsonPropertyOrder(1)] // en el JSON, Data aparece después de los campos de
-    BaseResult
- public T? Data { get; set; }
+    [JsonPropertyOrder(1)] // en el JSON, Data aparece después de los campos de BaseResult
+    public T? Data { get; set; }
     // Paginación: solo aparecen en el JSON cuando la respuesta es paginada
     [JsonPropertyOrder(2), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? PageNumber { get; set; }
