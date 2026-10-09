@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="ERP.Application/ERP.Application.csproj" Id="fc5a14da-6ab3-41d7-bea0-59af24108d11" />
+  <Project Path="ERP.Domain/ERP.Domain.csproj" Id="a1cded28-f283-4139-a169-60a1e3b4eee9" />
+  <Project Path="ERP.Infraestructure/ERP.Infraestructure.csproj" Id="f57b5b80-c1e0-4507-ad8f-c6b952b197f1" />
+  <Project Path="ERP.Shared/ERP.Shared.csproj" Id="c8ddf2aa-19bc-44f1-85af-764e13241782" />
+  <Project Path="ERP.WebAPI/ERP.WebAPI.csproj" />
+</Solution>
