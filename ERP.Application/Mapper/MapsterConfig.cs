@@ -97,6 +97,17 @@ public static class MapsterConfig
  TypeAdapterConfig<SupplierUpdateDto, Supplier>
  .NewConfig()
  .Ignore(dest => dest.IdSupplier); // viene de la ruta, no del body
+
+        // =====================================================================
+        // Warehouse (CRUD) — misma idea que Supplier
+        // Warehouse → WarehouseDto: mismos nombres, no necesita configuración.
+        // =====================================================================
+        TypeAdapterConfig<WarehouseCreateDto, Warehouse>
+            .NewConfig()
+            .Ignore(dest => dest.IdWarehouse);  // lo asigna el repositorio
+        TypeAdapterConfig<WarehouseUpdateDto, Warehouse>
+            .NewConfig()
+            .Ignore(dest => dest.IdWarehouse);  // viene de la ruta, no del body
     }
 
 
