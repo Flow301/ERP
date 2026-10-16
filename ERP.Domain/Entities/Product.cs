@@ -1,6 +1,6 @@
 ﻿namespace ERP.Domain.Entities;
 
-public record class Product
+public class Product
 {
     public int IdProduct { get; set; }
     public int IdWarehouse { get; set; }

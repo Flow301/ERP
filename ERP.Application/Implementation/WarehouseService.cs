@@ -76,7 +76,7 @@ public class WarehouseService : IWarehouseService
 
         // Regla de negocio: el nombre de la bodega no se repite (también hay un índice UNIQUE en la tabla)
         if (await _repository.ExistsByNameAsync(name))
-            return Result<WarehouseDto>.Failure(409, "Conflict", $"Warehouse '{name}' already exists!");
+            return Result<WarehouseDto>.Failure(409, "Conflict", $"Ya existe una bodega con el nombre '{name}'.");
 
         // DTO de entrada → entidad
         var entity = _mapper.Map<Warehouse>(warehouse);
@@ -105,7 +105,7 @@ public class WarehouseService : IWarehouseService
 
         // El nombre no puede ser el de OTRA bodega; conservar el propio sí se permite
         if (await _repository.ExistsByNameAsync(name, id))
-            return Result<WarehouseDto>.Failure(409, "Conflict", $"Warehouse '{name}' already exists!");
+            return Result<WarehouseDto>.Failure(409, "Conflict", $"Ya existe una bodega con el nombre '{name}'.");
 
         var entity = _mapper.Map<Warehouse>(warehouse);
         entity.IdWarehouse = id;                   // el Id viene de la RUTA, nunca del body

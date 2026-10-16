@@ -74,7 +74,8 @@ public class WarehouseRepository : IWarehouseRepository
     public async Task<bool> ExistsByNameAsync(string name, int? excludeId = null)
     {
         var result = await _context.Warehouse
-            .AnyAsync(w => w.WarehouseName == name && w.IdWarehouse != excludeId);
+            .AnyAsync(w => w.WarehouseName == name
+                && (excludeId == null || w.IdWarehouse != excludeId));
 
         return result;
     }
