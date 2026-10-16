@@ -108,6 +108,31 @@ public static class MapsterConfig
         TypeAdapterConfig<WarehouseUpdateDto, Warehouse>
             .NewConfig()
             .Ignore(dest => dest.IdWarehouse);  // viene de la ruta, no del body
+        // =====================================================================
+        // Product: DTOs de entrada → entidad (CRUD con relaciones)
+        // Las propiedades simples y las llaves foráneas (IdCategory, IdWarehouse)
+        // se copian solas. Se ignora lo que el cliente NO controla y las relaciones,
+        // que el servicio arma o sincroniza a partir de SupplierIds.
+        // =====================================================================
+        TypeAdapterConfig<ProductCreateDto, Product>
+        .NewConfig()
+        .Ignore(dest => dest.IdProduct, // lo asigna el repositorio
+        dest => dest.InsertDate, // lo asigna el servicio
+        dest => dest.Status, // todo producto nuevo nace activo
+        dest => dest.Category, // basta con IdCategory
+        dest => dest.Warehouse, // basta con IdWarehouse
+        dest => dest.ProductSuppliers) // se arma con SupplierIds
+        .Map(dest => dest.Image, src => src.Image ?? string.Empty);
+        TypeAdapterConfig<ProductUpdateDto, Product>
+        .NewConfig()
+        .Ignore(dest => dest.IdProduct,
+        dest => dest.InsertDate,
+        dest => dest.Status,
+        dest => dest.Category,
+        dest => dest.Warehouse,
+        dest => dest.ProductSuppliers) // se sincroniza en el servicio
+        .Map(dest => dest.Image, src => src.Image ?? string.Empty);
+        //Image ?? string.Empty: si el cliente no envía imagen, se guarda una cadena vacía en lugar de null.
     }
 
 

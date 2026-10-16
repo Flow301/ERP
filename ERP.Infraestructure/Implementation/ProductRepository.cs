@@ -16,16 +16,18 @@ public class ProductRepository : IProductRepository
     }
 
     // =====================================================================
-    // Laboratorio anterior — misma consulta + Include de Category y Warehouse,
-    // porque ProductListDto muestra CategoryName y WarehouseName
+    // LECTURA (laboratorios de LINQ)
+    // AsNoTracking: solo se leen. Where(p => p.Status): un producto con
+    // eliminación lógica deja de aparecer en todas las consultas.
     // =====================================================================
 
     public async Task<IEnumerable<Product>> GetAllAsync()
     {
         var result = await _context.Product
-            .AsNoTracking()                       // solo lectura: EF no rastrea las entidades
-            .Include(p => p.Category)             // JOIN con Category
-            .Include(p => p.Warehouse)            // JOIN con Warehouse
+            .AsNoTracking()
+            .Include(p => p.Category)
+            .Include(p => p.Warehouse)
+            .Where(p => p.Status)
             .OrderBy(p => p.IdProduct)
             .ToListAsync();
 
@@ -38,6 +40,7 @@ public class ProductRepository : IProductRepository
             .AsNoTracking()
             .Include(p => p.Category)
             .Include(p => p.Warehouse)
+            .Where(p => p.Status)
             .OrderByDescending(p => p.ProductName)
             .ToListAsync();
 
@@ -50,23 +53,22 @@ public class ProductRepository : IProductRepository
             .AsNoTracking()
             .Include(p => p.Category)
             .Include(p => p.Warehouse)
-            .Where(p => p.ProductName.Contains(name))
+            .Where(p => p.Status && p.ProductName.Contains(name))
             .OrderBy(p => p.ProductName)
             .ToListAsync();
 
         return result;
     }
 
-    // Detalle: carga anticipada (Eager Loading) de todas las ramas
     public async Task<Product?> GetByIdAsync(int id)
     {
         var result = await _context.Product
             .AsNoTracking()
-            .Include(p => p.Category)                 // rama 1: Product → Category
-            .Include(p => p.Warehouse)                // rama 2: Product → Warehouse
-            .Include(p => p.ProductSuppliers)         // rama 3: Product → ProductSupplier
-                .ThenInclude(ps => ps.Supplier)       //         ProductSupplier → Supplier
-            .FirstOrDefaultAsync(p => p.IdProduct == id);
+            .Include(p => p.Category)
+            .Include(p => p.Warehouse)
+            .Include(p => p.ProductSuppliers)
+                .ThenInclude(ps => ps.Supplier)
+            .FirstOrDefaultAsync(p => p.IdProduct == id && p.Status);
 
         return result;
     }
@@ -77,7 +79,8 @@ public class ProductRepository : IProductRepository
             .AsNoTracking()
             .Include(p => p.Category)
             .Include(p => p.Warehouse)
-            .OrderBy(p => p.IdProduct)            // Skip/Take siempre sobre un orden definido
+            .Where(p => p.Status)
+            .OrderBy(p => p.IdProduct)
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
@@ -106,7 +109,7 @@ public class ProductRepository : IProductRepository
             .Include(p => p.Warehouse)
             .Where(p => p.Status)
             .OrderByDescending(p => p.Price)
-            .ThenBy(p => p.ProductName)           // desempate: tres productos cuestan 119.99
+            .ThenBy(p => p.ProductName)
             .Take(10)
             .ToListAsync();
 
@@ -115,47 +118,39 @@ public class ProductRepository : IProductRepository
 
     public async Task<int> CountAsync()
     {
-        var result = await _context.Product.CountAsync();
+        var result = await _context.Product.CountAsync(p => p.Status);
 
         return result;
     }
 
-    // Reto A (sin cambios)
     public async Task<bool> ExistsByDescriptionAsync(string description)
     {
         var result = await _context.Product
-            .AnyAsync(p => p.Description.Contains(description));
+            .AnyAsync(p => p.Status && p.Description.Contains(description));
 
         return result;
     }
 
-    // Reto B
     public async Task<IEnumerable<Product>> GetByCategoryAsync(int idCategory)
     {
         var result = await _context.Product
             .AsNoTracking()
             .Include(p => p.Category)
             .Include(p => p.Warehouse)
-            .Where(p => p.IdCategory == idCategory)
+            .Where(p => p.Status && p.IdCategory == idCategory)
             .OrderBy(p => p.ProductName)
             .ToListAsync();
 
         return result;
     }
 
-    // =====================================================================
-    // NUEVO — LINQ avanzado
-    // =====================================================================
-
-    // Filtro sobre una relación: el Where genera el JOIN por sí solo;
-    // el Include se agrega porque el mapper necesita CategoryName y WarehouseName
     public async Task<IEnumerable<Product>> GetByCategoryNameAsync(string name)
     {
         var result = await _context.Product
             .AsNoTracking()
             .Include(p => p.Category)
             .Include(p => p.Warehouse)
-            .Where(p => p.Category.CategoryName.Contains(name))
+            .Where(p => p.Status && p.Category.CategoryName.Contains(name))
             .OrderBy(p => p.ProductName)
             .ToListAsync();
 
@@ -168,7 +163,7 @@ public class ProductRepository : IProductRepository
             .AsNoTracking()
             .Include(p => p.Category)
             .Include(p => p.Warehouse)
-            .Where(p => p.IdWarehouse == idWarehouse)
+            .Where(p => p.Status && p.IdWarehouse == idWarehouse)
             .OrderBy(p => p.ProductName)
             .ToListAsync();
 
@@ -181,22 +176,17 @@ public class ProductRepository : IProductRepository
             .AsNoTracking()
             .Include(p => p.Category)
             .Include(p => p.Warehouse)
-            .Where(p => p.Warehouse.WarehouseName.Contains(name))
+            .Where(p => p.Status && p.Warehouse.WarehouseName.Contains(name))
             .OrderBy(p => p.ProductName)
             .ToListAsync();
 
         return result;
     }
 
-    // EXCEPCIÓN — Agregación: el resultado de un GroupBy no es una entidad.
-    // El cálculo debe hacerse en SQL (si no, habría que traer todos los productos a memoria),
-    // así que el repositorio devuelve directamente CategoryStatsDto.
-    // SELECT p.IdCategory, c.CategoryName, COUNT(*), MIN(p.Price), MAX(p.Price),
-    //        ROUND(AVG(p.Price), 2), SUM(p.Price * p.StockQuantity)
-    // FROM Product p JOIN Category c ... GROUP BY p.IdCategory, c.CategoryName
     public async Task<IEnumerable<CategoryStatsDto>> GetStatsByCategoryAsync()
     {
         var result = await _context.Product
+            .Where(p => p.Status)
             .GroupBy(p => new { p.IdCategory, p.Category.CategoryName })
             .Select(g => new CategoryStatsDto
             {
@@ -211,6 +201,122 @@ public class ProductRepository : IProductRepository
             .OrderBy(s => s.CategoryName)
             .ToListAsync();
 
+        return result;
+    }
+
+    // =====================================================================
+    // NUEVO — Verificaciones de las relaciones (AnyAsync: no trae filas)
+    // =====================================================================
+
+    public async Task<bool> CategoryExistsAsync(int idCategory)
+    {
+        var result = await _context.Category
+            .AnyAsync(c => c.IdCategory == idCategory);
+
+        return result;
+    }
+
+    public async Task<bool> WarehouseExistsAsync(int idWarehouse)
+    {
+        var result = await _context.Warehouse
+            .AnyAsync(w => w.IdWarehouse == idWarehouse);
+
+        return result;
+    }
+
+    // Devuelve cuáles de los Ids recibidos existen y están activos
+    // SQL: SELECT IdSupplier FROM Supplier WHERE IdSupplier IN (...) AND Status = 1
+    public async Task<IEnumerable<int>> GetActiveSupplierIdsAsync(IEnumerable<int> supplierIds)
+    {
+        var result = await _context.Supplier
+            .Where(s => supplierIds.Contains(s.IdSupplier) && s.Status)
+            .Select(s => s.IdSupplier)
+            .ToListAsync();
+
+        return result;
+    }
+
+    // =====================================================================
+    // NUEVO — Escritura
+    // Sin AsNoTracking: el ChangeTracker debe rastrear la entidad para saber
+    // qué cambió cuando se llame SaveChangesAsync().
+    // =====================================================================
+
+    // Editar: se incluye la colección que se va a sincronizar (y solo esa)
+    public async Task<Product?> GetForUpdateAsync(int id)
+    {
+        var result = await _context.Product
+            .Include(p => p.ProductSuppliers)
+            .FirstOrDefaultAsync(p => p.IdProduct == id && p.Status);
+
+        return result;
+    }
+
+    // Eliminar: solo cambia Status, no hace falta ninguna relación
+    public async Task<Product?> GetForDeleteAsync(int id)
+    {
+        var result = await _context.Product
+            .FirstOrDefaultAsync(p => p.IdProduct == id && p.Status);
+
+        return result;
+    }
+
+    // Crear: Add marca el producto Y sus ProductSuppliers como Added;
+    // SaveChangesAsync inserta todo el grafo en una sola transacción
+    public async Task AddAsync(Product product)
+    {
+        // IdProduct es ValueGeneratedNever (no es IDENTITY): el siguiente número se calcula con LINQ
+        var lastId = await _context.Product.MaxAsync(p => (int?)p.IdProduct) ?? 0;
+        product.IdProduct = lastId + 1;
+
+        _context.Product.Add(product);
+        await _context.SaveChangesAsync();
+    }
+
+    // Marca las filas de la tabla puente como Deleted (el DELETE se envía en SaveChangesAsync)
+    public void RemoveSupplierLinks(IEnumerable<ProductSupplier> links)
+    {
+        _context.RemoveRange(links);
+    }
+
+    // Un solo SaveChangesAsync por operación: todo o nada
+    public async Task SaveChangesAsync()
+    {
+        await _context.SaveChangesAsync();
+    }
+
+    // Búsqueda con filtros opcionales: cada filtro se agrega solo si viene un valor
+    public async Task<IEnumerable<Product>> SearchAsync(string? name, decimal? minPrice,
+   decimal? maxPrice, int? idCategory)
+    {
+        IQueryable<Product> query = _context.Product
+        .AsNoTracking()
+        .Include(p => p.Category)
+        .Include(p => p.Warehouse)
+        .Where(p => p.Status);
+        if (!string.IsNullOrWhiteSpace(name))
+            query = query.Where(p => p.ProductName.Contains(name));
+        if (minPrice.HasValue)
+            query = query.Where(p => p.Price >= minPrice.Value);
+        if (maxPrice.HasValue)
+            query = query.Where(p => p.Price <= maxPrice.Value);
+        if (idCategory.HasValue)
+            query = query.Where(p => p.IdCategory == idCategory.Value);
+        var result = await query
+        .OrderBy(p => p.Price)
+        .ThenBy(p => p.ProductName)
+        .ToListAsync();
+        return result;
+    }
+
+    // Regla de negocio: no dos productos ACTIVOS con el mismo nombre.
+    // SQL Server compara sin distinguir mayúsculas (collation por defecto): no hace falta ToLower()
+ public async Task<bool> ExistsByNameAsync(string productName, int? excludeId = null)
+    {
+        var result = await _context.Product
+        .AnyAsync(p => p.Status
+        && p.ProductName == productName
+        && (excludeId == null || p.IdProduct != excludeId));
         return result;
     }
 }

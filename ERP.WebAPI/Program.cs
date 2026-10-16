@@ -1,21 +1,41 @@
 using ERP.Application.Implementation;
 using ERP.Application.Interfaces;
 using ERP.Application.Mapper;
+using ERP.Domain.DTO.PatternResult;
 using ERP.Infraestructure.Data;
 using ERP.Infraestructure.Data.Seed;
 using ERP.Infraestructure.Implementation;
 using ERP.Infraestructure.Interfaces;
 using Mapster;
 using MapsterMapper;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
+using ERP.Domain.DTO.PatternResult;
+using Microsoft.AspNetCore.Mvc; 
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
-builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+builder.Services.AddControllers()
+ .ConfigureApiBehaviorOptions(options =>
+ {
+     // El 400 automático de [ApiController] usa la misma forma Result<T> que el resto de la API
+ options.InvalidModelStateResponseFactory = context =>
+ {
+     var errors = context.ModelState
+     .Where(entry => entry.Value!.Errors.Count > 0)
+     .ToDictionary(
+     entry => entry.Key,
+     entry => entry.Value!.Errors.Select(error => error.ErrorMessage).ToArray());
+     var result = Result<Dictionary<string, string[]>>.Failure(400, "Bad Request",
+     "Uno o más datos no son válidos.");
+     result.Data = errors;
+     return new BadRequestObjectResult(result);
+ };
+ });
+
 builder.Services.AddOpenApi();
 
 var adminPassword = builder.Configuration["Seed:AdminPassword"]

@@ -108,4 +108,16 @@ public class SupplierRepository : ISupplierRepository
             .Where(s => s.IdSupplier == id)
             .ExecuteDeleteAsync();
     }
+
+    // Regla de negocio: cédula jurídica única.
+    // excludeId: al editar, el propio proveedor no cuenta como duplicado
+    public async Task<bool> ExistsByLegalEntityNumberAsync(string legalEntityNumber, int?
+   excludeId = null)
+    {
+        var result = await _context.Supplier
+        .AnyAsync(s => s.LegalEntityNumber == legalEntityNumber
+        && (excludeId == null || s.IdSupplier != excludeId));
+        return result;
+    }
+
 }

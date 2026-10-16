@@ -1,5 +1,7 @@
 ﻿using ERP.Application.Interfaces;
+using ERP.Domain.DTO;
 using Microsoft.AspNetCore.Mvc;
+using ERP.Domain.DTO;
 
 namespace ERP.WebAPI.Controllers;
 
@@ -74,8 +76,8 @@ public class ProductController : ControllerBase
         return Ok(result);
     }
 
-    // GET api/Product/{id:int}  → ahora devuelve el detalle con relaciones
-    [HttpGet("{id:int}")]
+    // GET api/Product/{id:int} → ahora con nombre de ruta (lo usa CreatedAtRoute)
+    [HttpGet("{id:int}", Name = "GetProductById")]
     public async Task<IActionResult> GetByIdAsync(int id)
     {
         var result = await _service.GetByIdAsync(id);
@@ -177,4 +179,40 @@ public class ProductController : ControllerBase
 
         return Ok(result);
     }
+    // =====================================================================
+    // NUEVO — CRUD con relaciones (respuestas con Result<T>)
+    // =====================================================================
+    // POST api/Product
+    [HttpPost]
+    public async Task<IActionResult> AddAsync([FromBody] ProductCreateDto product)
+    {
+        var result = await _service.AddAsync(product);
+        if (!result.IsSuccess)
+            return StatusCode(result.Status, result);
+        // 201 Created + encabezado Location: /api/Product/{id}
+        return CreatedAtRoute("GetProductById", new { id = result.Data!.IdProduct }, result);
+    }
+    // PUT api/Product/{id}
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> UpdateAsync([FromRoute] int id, [FromBody]
+ProductUpdateDto product)
+    {
+        var result = await _service.UpdateAsync(id, product);
+        return StatusCode(result.Status, result);
+    }
+    // DELETE api/Product/{id} (eliminación lógica)
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> DeleteAsync(int id)
+    {
+        var result = await _service.DeleteAsync(id);
+        return StatusCode(result.Status, result);
+    }
+    // GET api/Product/search?name=...&minPrice=...&maxPrice=...&idCategory=...
+    [HttpGet("search")]
+    public async Task<IActionResult> SearchAsync([FromQuery] ProductSearchDto search)
+    {
+        var result = await _service.SearchAsync(search);
+        return StatusCode(result.Status, result);
+    }
+
 }

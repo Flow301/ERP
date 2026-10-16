@@ -72,6 +72,11 @@ public class SupplierService : ISupplierService
 
     public async Task<Result<SupplierDetailDto>> AddAsync(SupplierCreateDto supplier)
     {
+        // Regla de negocio: la cédula jurídica no se puede repetir
+        if (await _repository.ExistsByLegalEntityNumberAsync(supplier.LegalEntityNumber!))
+            return Result<SupplierDetailDto>.Failure(409, "Conflict",
+            $"Ya existe un proveedor con la cédula jurídica {supplier.LegalEntityNumber}.");
+
         // DTO de entrada → entidad
         var entity = _mapper.Map<Supplier>(supplier);
         entity.Status = true;                      // Regla de negocio: todo proveedor nuevo nace activo
@@ -94,6 +99,11 @@ public class SupplierService : ISupplierService
     {
         if (!await _repository.ExistsAsync(id))
             return Result<SupplierDetailDto>.Failure(404, "Not Found", $"Supplier {id} doesn't exist!");
+
+        // Misma regla, excluyendo al propio proveedor
+        if (await _repository.ExistsByLegalEntityNumberAsync(supplier.LegalEntityNumber!, id))
+            return Result<SupplierDetailDto>.Failure(409, "Conflict",
+            $"Ya existe un proveedor con la cédula jurídica {supplier.LegalEntityNumber}.");
 
         var entity = _mapper.Map<Supplier>(supplier);
         entity.IdSupplier = id;                    // el Id viene de la RUTA, nunca del body

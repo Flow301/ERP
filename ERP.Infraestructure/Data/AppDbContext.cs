@@ -15,7 +15,7 @@ public class AppDbContext : DbContext
     {
     }
 
-    public DbSet<Category> Categorie { get; set; }
+    public DbSet<Category> Category { get; set; }
     public DbSet<CreditCard> CreditCard { get; set; }
     public DbSet<Customer> Customer { get; set; }
     public DbSet<Invoice> Invoice { get; set; }

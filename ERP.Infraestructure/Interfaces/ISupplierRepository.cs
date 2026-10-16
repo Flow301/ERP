@@ -15,4 +15,5 @@ public interface ISupplierRepository
     Task AddAsync(Supplier supplier);
     Task UpdateAsync(Supplier supplier);
     Task DeleteAsync(int id);
+    Task<bool> ExistsByLegalEntityNumberAsync(string legalEntityNumber, int? excludeId = null);
 }
