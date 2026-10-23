@@ -285,33 +285,62 @@ public class ProductRepository : IProductRepository
         await _context.SaveChangesAsync();
     }
 
-    // Búsqueda con filtros opcionales: cada filtro se agrega solo si viene un valor
-    public async Task<IEnumerable<Product>> SearchAsync(string? name, decimal? minPrice,
-   decimal? maxPrice, int? idCategory)
+    // Filtros + búsqueda + ordenamiento + paginación, en UNA consulta a SQL Server
+    public async Task<(IEnumerable<Product> Items, int TotalRecords)>
+SearchAsync(ProductSearchDto search)
     {
+        // 1. Punto de partida: IQueryable todavía no ejecuta nada en la base
         IQueryable<Product> query = _context.Product
         .AsNoTracking()
         .Include(p => p.Category)
         .Include(p => p.Warehouse)
-        .Where(p => p.Status);
-        if (!string.IsNullOrWhiteSpace(name))
+        .Where(p => p.Status == search.Status); // estado: activos por defecto
+                                                // 2. Filtros y búsqueda: cada uno se agrega SOLO si viene en la petición
+        if (!string.IsNullOrWhiteSpace(search.Name))
+        {
+            var name = search.Name.Trim();
             query = query.Where(p => p.ProductName.Contains(name));
-        if (minPrice.HasValue)
-            query = query.Where(p => p.Price >= minPrice.Value);
-        if (maxPrice.HasValue)
-            query = query.Where(p => p.Price <= maxPrice.Value);
-        if (idCategory.HasValue)
-            query = query.Where(p => p.IdCategory == idCategory.Value);
-        var result = await query
-        .OrderBy(p => p.Price)
-        .ThenBy(p => p.ProductName)
+        }
+        if (search.MinPrice.HasValue)
+            query = query.Where(p => p.Price >= search.MinPrice.Value);
+        if (search.MaxPrice.HasValue)
+            query = query.Where(p => p.Price <= search.MaxPrice.Value);
+        if (search.IdCategory.HasValue)
+            query = query.Where(p => p.IdCategory == search.IdCategory.Value);
+        if (search.IdSupplier.HasValue) // relación N:N → Any()
+            query = query.Where(p => p.ProductSuppliers.Any(ps => ps.IdSupplier ==
+           search.IdSupplier.Value));
+        // 3. Total ANTES de paginar: SELECT COUNT(*) con los mismos filtros
+        var totalRecords = await query.CountAsync();
+        // 4. Ordenamiento: lista blanca con switch (nunca el texto del cliente directo a la consulta)
+ var descending = string.Equals(search.SortDirection, "desc",
+StringComparison.OrdinalIgnoreCase);
+        IOrderedQueryable<Product> ordered = search.SortBy?.ToLowerInvariant() switch
+        {
+            "price" => descending ? query.OrderByDescending(p => p.Price) : query.OrderBy(p =>
+           p.Price),
+            "stock" => descending ? query.OrderByDescending(p => p.StockQuantity) :
+           query.OrderBy(p => p.StockQuantity),
+            "date" => descending ? query.OrderByDescending(p => p.InsertDate) :
+           query.OrderBy(p => p.InsertDate),
+            _ => descending ? query.OrderByDescending(p => p.ProductName) :
+           query.OrderBy(p => p.ProductName)
+        };
+        // 5. Desempate por Id: con valores repetidos (mismo precio) las páginas no se mezclan
+        // 6. Paginación: OFFSET/FETCH en SQL Server
+        var items = await ordered
+        .ThenBy(p => p.IdProduct)
+        .Skip((search.PageNumber - 1) * search.PageSize)
+        .Take(search.PageSize)
         .ToListAsync();
+        var result = (items, totalRecords);
         return result;
     }
 
+
     // Regla de negocio: no dos productos ACTIVOS con el mismo nombre.
     // SQL Server compara sin distinguir mayúsculas (collation por defecto): no hace falta ToLower()
- public async Task<bool> ExistsByNameAsync(string productName, int? excludeId = null)
+    public async Task<bool> ExistsByNameAsync(string productName, int? excludeId = null)
     {
         var result = await _context.Product
         .AnyAsync(p => p.Status

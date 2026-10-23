@@ -19,7 +19,9 @@ public interface IProductRepository
     Task<IEnumerable<Product>> GetByWarehouseIdAsync(int idWarehouse);
     Task<IEnumerable<Product>> GetByWarehouseNameAsync(string name);
     Task<IEnumerable<CategoryStatsDto>> GetStatsByCategoryAsync();
-    Task<IEnumerable<Product>> SearchAsync(string? name, decimal? minPrice, decimal? maxPrice, int? idCategory);
+    //Recibe el DTO de búsqueda y devuelve la página + el total de registros del filtro
+    Task<(IEnumerable<Product> Items, int TotalRecords)> SearchAsync(ProductSearchDto
+   search);
     // ----- NUEVO: verificaciones de las relaciones -----
     Task<bool> CategoryExistsAsync(int idCategory);
     Task<bool> WarehouseExistsAsync(int idWarehouse);

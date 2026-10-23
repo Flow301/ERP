@@ -313,14 +313,18 @@ entity.ProductName); // NUEVO 6-1
     }
 
     // Búsqueda: el DTO ya llega validado (atributos + IValidatableObject)
+    // Búsqueda con filtros, ordenamiento y paginación.
+    // El DTO ya llega validado (atributos + IValidatableObject).
     public async Task<Result<IEnumerable<ProductListDto>>> SearchAsync(ProductSearchDto
    search)
     {
-        var products = await _repository.SearchAsync(
-        search.Name?.Trim(), search.MinPrice, search.MaxPrice, search.IdCategory);
+        var (products, totalRecords) = await _repository.SearchAsync(search);
         var data = _mapper.Map<IEnumerable<ProductListDto>>(products);
-        var result = Result<IEnumerable<ProductListDto>>.Success(data);
+        // Una búsqueda sin coincidencias NO es un error: 200 con data = [] y totalRecords = 0
+        var result = Result<IEnumerable<ProductListDto>>.Paged(data, search.PageNumber,
+       search.PageSize, totalRecords);
         return result;
     }
+
 
 }
