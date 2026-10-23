@@ -1,6 +1,6 @@
 ﻿namespace ERP.Domain.Entities;
 
-public record class Tax
+public class Tax
 {
     public int IdTax { get; set; }
     public string TaxName { get; set; } = null!;

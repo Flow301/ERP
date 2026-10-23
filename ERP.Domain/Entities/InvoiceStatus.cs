@@ -1,6 +1,6 @@
 ﻿namespace ERP.Domain.Entities;
 
-public record class InvoiceStatus
+public class InvoiceStatus
 {
     public int IdInvoiceStatus { get; set; }
 

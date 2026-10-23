@@ -5,7 +5,7 @@ using System.Text;
 
 namespace ERP.Domain.Entities;
 
-public record class Category
+public class Category
 {
     public int IdCategory { get; set; }
     public string CategoryName { get; set; } = null!; 

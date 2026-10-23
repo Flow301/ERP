@@ -12,9 +12,33 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Scalar.AspNetCore;
 using ERP.Domain.DTO.PatternResult;
-using Microsoft.AspNetCore.Mvc; 
+using Microsoft.AspNetCore.Mvc;
+using ERP.WebAPI.Handlers;
+using Serilog;
+using Serilog.Events;
+
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Serilog reemplaza al proveedor de logging por defecto (clase 6-1)
+builder.Services.AddSerilog((services, logConfig) => logConfig
+ .MinimumLevel.Information() // nivel general
+ .MinimumLevel.Override("Microsoft", LogEventLevel.Warning) // menos ruido de framework
+ .MinimumLevel.Override("Microsoft.Hosting.Lifetime", LogEventLevel.Information) //"Now listening on..."
+ .MinimumLevel.Override("Microsoft.EntityFrameworkCore.Database.Command",
+ builder.Environment.IsDevelopment() ? LogEventLevel.Information :
+LogEventLevel.Warning) // SQL de EF (5-1)
+ .Enrich.FromLogContext()
+ .WriteTo.Console()
+ .WriteTo.File(
+ path: "logs/serilog-.txt",
+ rollingInterval: RollingInterval.Day, // un archivo por día: serilog-20261003.txt
+ retainedFileCountLimit: 14, // conserva 14 archivos
+ fileSizeLimitBytes: 10_485_760, // 10 MB por archivo
+ rollOnFileSizeLimit: true, // al llegar a 10 MB abre serilog-20261003_001.txt
+ shared: true, // varios procesos pueden escribir el mismo archivo
+ outputTemplate:"{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] ({SourceContext}){ Message:lj}{NewLine}{Exception}"));
+
 
 // Add services to the container.
 
@@ -35,6 +59,10 @@ builder.Services.AddControllers()
      return new BadRequestObjectResult(result);
  };
  });
+
+// Manejo global de errores (clase 6-1)
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails(); // obligatorio para usar UseExceptionHandler() sin parámetros
 
 builder.Services.AddOpenApi();
 
@@ -79,6 +107,9 @@ builder.Services.AddScoped<IWarehouseService, WarehouseService>();
 
 
 var app = builder.Build();
+
+app.UseSerilogRequestLogging(); // 1. Una línea de log por petición: método, ruta, código y duración
+app.UseExceptionHandler(); // 2. Todo lo que viene después queda protegido por el manejador global
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

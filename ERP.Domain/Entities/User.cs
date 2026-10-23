@@ -1,6 +1,6 @@
 ﻿namespace ERP.Domain.Entities;
 
-public record class User
+public class User
 {
     public int IdUser { get; set; }
 

@@ -1,159 +1,168 @@
 ﻿using ERP.Application.Interfaces;
 using ERP.Domain.DTO;
+using ERP.Domain.DTO.PatternResult;
+using ERP.Domain.Entities;
 using ERP.Infraestructure.Interfaces;
 using MapsterMapper;
+using Microsoft.Extensions.Logging;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace ERP.Application.Implementation;
 
-using ERP.Domain.DTO.PatternResult;
-using ERP.Domain.Entities;
 
 
 public class ProductService : IProductService
+
 {
+    // Regla de paginación: igual que en SupplierService
+    public const int MaxPageSize = 50;
     private readonly IProductRepository _repository;
     private readonly IMapper _mapper;
-
-    public ProductService(IProductRepository repository, IMapper mapper)
+    private readonly ILogger<ProductService> _logger; // NUEVO 6-1
+    public ProductService(IProductRepository repository, IMapper mapper,
+    ILogger<ProductService> logger)
     {
         _repository = repository;
         _mapper = mapper;
+        _logger = logger;
     }
 
     // =====================================================================
-    // Laboratorio anterior — el repositorio devuelve entidades;
-    // el servicio las convierte en DTOs con el mapper
+    // Laboratorios de LINQ — 6-1: ahora devuelven Result<T>
+    // El repositorio no cambia: sigue devolviendo entidades
     // =====================================================================
-
-    public async Task<IEnumerable<ProductListDto>> GetAllAsync()
+    public async Task<Result<IEnumerable<ProductListDto>>> GetAllAsync()
     {
         var products = await _repository.GetAllAsync();
-
-        var result = _mapper.Map<IEnumerable<ProductListDto>>(products);
-
+        var data = _mapper.Map<IEnumerable<ProductListDto>>(products);
+        var result = ListResult(data);
         return result;
     }
-
-    public async Task<IEnumerable<ProductListDto>> GetAllOrderDescAsync()
+    public async Task<Result<IEnumerable<ProductListDto>>> GetAllOrderDescAsync()
     {
         var products = await _repository.GetAllOrderDescAsync();
-
-        var result = _mapper.Map<IEnumerable<ProductListDto>>(products);
-
+        var data = _mapper.Map<IEnumerable<ProductListDto>>(products);
+        var result = ListResult(data);
         return result;
     }
-
-    public async Task<IEnumerable<ProductListDto>> FindByNameAsync(string name)
+    public async Task<Result<IEnumerable<ProductListDto>>> FindByNameAsync(string name)
     {
         var products = await _repository.FindByNameAsync(name.Trim());
-
-        var result = _mapper.Map<IEnumerable<ProductListDto>>(products);
-
+        var data = _mapper.Map<IEnumerable<ProductListDto>>(products);
+        var result = ListResult(data);
         return result;
     }
-
-    // Detalle: el mapper arma los DTOs anidados y los campos calculados
-    public async Task<ProductDetailDto?> GetByIdAsync(int id)
+    // Detalle: el repositorio devuelve la ENTIDAD con sus relaciones;
+    // el mapper arma los DTOs anidados y los campos calculados.
+    public async Task<Result<ProductDetailDto>> GetByIdAsync(int id)
     {
         var product = await _repository.GetByIdAsync(id);
-
         if (product is null)
-            return null;
-
-        var result = _mapper.Map<ProductDetailDto>(product);
-
+            return Result<ProductDetailDto>.Failure(404, "Not Found", $"Product {id} doesn't exist!");
+           
+            var data = _mapper.Map<ProductDetailDto>(product);
+        var result = Result<ProductDetailDto>.Success(data);
         return result;
     }
-
-    public async Task<IEnumerable<ProductListDto>> GetPaginationAsync(int pageNumber, int pageSize)
+    // Misma regla de paginación que SupplierService: 400 si los parámetros no son válidos
+    public async Task<Result<IEnumerable<ProductListDto>>> GetPaginationAsync(int
+pageNumber, int pageSize)
     {
+        if (pageNumber < 1 || pageSize < 1 || pageSize > MaxPageSize)
+            return Result<IEnumerable<ProductListDto>>.Failure(400, "Bad Request",
+            $"pageNumber must be 1 or more and pageSize between 1 and {MaxPageSize}!");
         var products = await _repository.GetPaginationAsync(pageNumber, pageSize);
-
-        var result = _mapper.Map<IEnumerable<ProductListDto>>(products);
-
-        return result;
+        var totalRecords = await _repository.CountAsync();
+        var data = _mapper.Map<IEnumerable<ProductListDto>>(products);
+        var result = data.Any()
+        ? Result<IEnumerable<ProductListDto>>.Paged(data, pageNumber, pageSize,
+       totalRecords)
+        : Result<IEnumerable<ProductListDto>>.Failure(404, "Not Found", "No product found!");
+ return result;
     }
-
-    public async Task<IEnumerable<ProductListDto>> GetPriceAsync(decimal price)
+    public async Task<Result<IEnumerable<ProductListDto>>> GetPriceAsync(decimal price)
     {
         var products = await _repository.GetPriceAsync(price);
-
-        var result = _mapper.Map<IEnumerable<ProductListDto>>(products);
-
+        var data = _mapper.Map<IEnumerable<ProductListDto>>(products);
+        var result = ListResult(data);
         return result;
     }
-
-    public async Task<IEnumerable<ProductListDto>> GetTop10PriceAsync()
+    public async Task<Result<IEnumerable<ProductListDto>>> GetTop10PriceAsync()
     {
         var products = await _repository.GetTop10PriceAsync();
-
-        var result = _mapper.Map<IEnumerable<ProductListDto>>(products);
-
+        var data = _mapper.Map<IEnumerable<ProductListDto>>(products);
+        var result = ListResult(data);
         return result;
     }
-
     // Un número o un bool no necesitan mapper
-    public async Task<int> CountAsync()
+    public async Task<Result<int>> CountAsync()
     {
-        var result = await _repository.CountAsync();
-
+        var count = await _repository.CountAsync();
+        var result = Result<int>.Success(count);
         return result;
     }
-
-    public async Task<bool> ExistsByDescriptionAsync(string description)
+    public async Task<Result<bool>> ExistsByDescriptionAsync(string description)
     {
-        var result = await _repository.ExistsByDescriptionAsync(description.Trim());
-
+        var exists = await _repository.ExistsByDescriptionAsync(description.Trim());
+        var result = Result<bool>.Success(exists);
         return result;
     }
-
-    public async Task<IEnumerable<ProductListDto>> GetByCategoryAsync(int idCategory)
+    // Categoría sin productos → 200 con [] (no es un error): no usa ListResult
+    public async Task<Result<IEnumerable<ProductListDto>>> GetByCategoryAsync(int
+   idCategory)
     {
         var products = await _repository.GetByCategoryAsync(idCategory);
-
-        var result = _mapper.Map<IEnumerable<ProductListDto>>(products);
-
+        var data = _mapper.Map<IEnumerable<ProductListDto>>(products);
+        var result = Result<IEnumerable<ProductListDto>>.Success(data);
         return result;
     }
-
-    // =====================================================================
-    // NUEVO — LINQ avanzado
-    // =====================================================================
-
-    public async Task<IEnumerable<ProductListDto>> GetByCategoryNameAsync(string name)
+    public async Task<Result<IEnumerable<ProductListDto>>>
+   GetByCategoryNameAsync(string name)
     {
         var products = await _repository.GetByCategoryNameAsync(name.Trim());
-
-        var result = _mapper.Map<IEnumerable<ProductListDto>>(products);
-
+        var data = _mapper.Map<IEnumerable<ProductListDto>>(products);
+        var result = ListResult(data);
         return result;
     }
-
-    public async Task<IEnumerable<ProductListDto>> GetByWarehouseIdAsync(int idWarehouse)
+    public async Task<Result<IEnumerable<ProductListDto>>> GetByWarehouseIdAsync(int
+   idWarehouse)
     {
         var products = await _repository.GetByWarehouseIdAsync(idWarehouse);
-
-        var result = _mapper.Map<IEnumerable<ProductListDto>>(products);
-
+        var data = _mapper.Map<IEnumerable<ProductListDto>>(products);
+        var result = ListResult(data);
         return result;
     }
-
-    public async Task<IEnumerable<ProductListDto>> GetByWarehouseNameAsync(string name)
+    public async Task<Result<IEnumerable<ProductListDto>>>
+   GetByWarehouseNameAsync(string name)
     {
         var products = await _repository.GetByWarehouseNameAsync(name.Trim());
-
-        var result = _mapper.Map<IEnumerable<ProductListDto>>(products);
-
+        var data = _mapper.Map<IEnumerable<ProductListDto>>(products);
+        var result = ListResult(data);
         return result;
     }
-
     // Excepción: el GroupBy ya llega como DTO desde el repositorio, no necesita mapper
-    public async Task<IEnumerable<CategoryStatsDto>> GetStatsByCategoryAsync()
+    public async Task<Result<IEnumerable<CategoryStatsDto>>> GetStatsByCategoryAsync()
     {
-        var result = await _repository.GetStatsByCategoryAsync();
-
+        var data = await _repository.GetStatsByCategoryAsync();
+        var result = ListResult(data);
         return result;
     }
+    // ---------------------------------------------------------------------
+    // Lista vacía → 404 (el mismo código que respondían los controllers),
+    // ahora con el formato Result<T>.Genérico: sirve para cualquier DTO.
+ // ---------------------------------------------------------------------
+ private static Result<IEnumerable<T>> ListResult<T>(IEnumerable<T> data)
+    {
+        var result = data.Any()
+        ? Result<IEnumerable<T>>.Success(data)
+        : Result<IEnumerable<T>>.Failure(404, "Not Found", "No products found!");
+        return result;
+    }
+
+
+
+
+
     // =====================================================================
     // NUEVO — CRUD con relaciones
     // =====================================================================
@@ -165,8 +174,13 @@ public class ProductService : IProductService
 
         // Regla de negocio: nombre único entre los productos activos
         if (await _repository.ExistsByNameAsync(product.ProductName!.Trim()))
+        {
+            _logger.LogWarning("Intento de crear producto con nombre duplicado: {ProductName}",
+           product.ProductName); // NUEVO 6-1
             return Result<ProductDetailDto>.Failure(409, "Conflict",
- $"Ya existe un producto con el nombre '{product.ProductName}'.");
+            $"Ya existe un producto con el nombre '{product.ProductName}'.");
+        }
+
 
         if (error is not null)
             return Result<ProductDetailDto>.Failure(400, "Bad Request", error);
@@ -182,6 +196,8 @@ public class ProductService : IProductService
 
         await _repository.AddAsync(entity);       // INSERT Product + INSERT ProductSupplier, una transacción
 
+        _logger.LogInformation("Producto {IdProduct} creado: {ProductName}", entity.IdProduct,
+entity.ProductName); // NUEVO 6-1
         // Se vuelve a leer con sus relaciones para responder con el detalle completo
         var created = await _repository.GetByIdAsync(entity.IdProduct);
 
@@ -204,8 +220,12 @@ public class ProductService : IProductService
 
         // Misma regla, excluyendo al propio producto
         if (await _repository.ExistsByNameAsync(product.ProductName!.Trim(), id))
+        {
+            _logger.LogWarning("Intento de renombrar el producto {IdProduct} con un nombre duplicado: { ProductName}",
+ id, product.ProductName); // NUEVO 6-1
             return Result<ProductDetailDto>.Failure(409, "Conflict",
             $"Ya existe un producto con el nombre '{product.ProductName}'.");
+        }
 
         if (error is not null)
             return Result<ProductDetailDto>.Failure(400, "Bad Request", error);
@@ -217,6 +237,8 @@ public class ProductService : IProductService
         SyncSuppliers(entity, product.SupplierIds);
 
         await _repository.SaveChangesAsync();     // UPDATE + INSERT/DELETE en ProductSupplier, una transacción
+
+        _logger.LogInformation("Producto {IdProduct} actualizado", id); // NUEVO 6-1
 
         var updated = await _repository.GetByIdAsync(id);
 
@@ -238,6 +260,8 @@ public class ProductService : IProductService
         entity.Status = false;                    // ChangeTracker: Modified, solo la columna Status
 
         await _repository.SaveChangesAsync();     // UPDATE Product SET Status = 0 WHERE IdProduct = @id
+
+        _logger.LogInformation("Producto {IdProduct} desactivado (borrado lógico)", id); // NUEVO 
 
         var result = Result<int>.Success(id, 200, "OK", "Record deleted!");
 

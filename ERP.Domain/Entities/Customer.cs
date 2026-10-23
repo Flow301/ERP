@@ -1,6 +1,6 @@
 ﻿namespace ERP.Domain.Entities;
 
-public record class Customer
+public class Customer
 {
     public string IdCustomer { get; set; } = null!;
 

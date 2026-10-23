@@ -1,6 +1,6 @@
 ﻿namespace ERP.Domain.Entities;
 
-public record class InvoiceItem
+public class InvoiceItem
 {
     public int IdInvoice { get; set; }
     public int LineNumber { get; set; }
