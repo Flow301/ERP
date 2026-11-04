@@ -12,4 +12,7 @@ public interface IInvoiceService
 
     // NUEVO  proceso de negocio 
     Task<Result<InvoiceDetailDto>> RegisterAsync(InvoiceCreateDto invoice);
+
+    // RETO  anular una factura 
+    Task<Result<InvoiceDetailDto>> VoidAsync(int id);
 }

@@ -135,9 +135,8 @@ public class InvoiceRepository : IInvoiceRepository
     public async Task<int?> CreateAsync(Invoice invoice)
     {
         // La estrategia de ejecución permite usar una transacción propia aunque el 
-        // DbContext tenga EnableRetryOnFailure. Si hay un fallo transitorio, repite TODO el 
-        bloque.
-                var strategy = _context.Database.CreateExecutionStrategy();
+        // DbContext tenga EnableRetryOnFailure. Si hay un fallo transitorio, repite TODO el bloque.
+        var strategy = _context.Database.CreateExecutionStrategy();
         var result = await strategy.ExecuteAsync(async () =>
         {
         _context.ChangeTracker.Clear();      // si el bloque se repite, empieza limpio 
@@ -186,5 +185,60 @@ p.StockQuantity - quantity));
 
         return result;
     }
-}
 
+    // ===================================================================== 
+    // RETO  PROCESO TRANSACCIONAL: anular una factura (todo o nada) 
+    // ===================================================================== 
+
+    public async Task<bool> VoidAsync(int idInvoice, int idStatusVoided)
+    {
+        // Misma estrategia de ejecución que CreateAsync: si hay un fallo transitorio, repite TODO el bloque.
+        var strategy = _context.Database.CreateExecutionStrategy();
+        var result = await strategy.ExecuteAsync(async () =>
+        {
+            _context.ChangeTracker.Clear();      // si el bloque se repite, empieza limpio 
+
+            // BEGIN TRANSACTION. Si algo lanza una excepción antes del Commit, 
+            // "await using" revierte la transacción al salir del bloque. 
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+
+            // 1. Cambiar el estado. La condición "todavía no está anulada" va DENTRO del UPDATE:
+            //    si dos usuarios anulan la misma factura a la vez, solo uno actualiza la fila
+            //    y el inventario no se devuelve dos veces.
+            var updated = await _context.Invoice
+                .Where(i => i.IdInvoice == idInvoice && i.IdInvoiceStatus != idStatusVoided)
+                .ExecuteUpdateAsync(s => s.SetProperty(i => i.IdInvoiceStatus, idStatusVoided));
+
+            if (updated == 0)
+            {
+                // ROLLBACK: no se cambió nada 
+                await transaction.RollbackAsync();
+                return false;
+            }
+
+            // 2. Devolver al inventario la cantidad de cada línea (StockQuantity + Quantity).
+            //    ExecuteUpdateAsync va directo a SQL Server, dentro de la misma transacción.
+            var lines = await _context.InvoiceItem
+                .AsNoTracking()
+                .Where(ii => ii.IdInvoice == idInvoice)
+                .Select(ii => new { ii.IdProduct, ii.Quantity })
+                .ToListAsync();
+
+            foreach (var line in lines)
+            {
+                var idProduct = line.IdProduct;
+                var quantity = line.Quantity;
+
+                await _context.Product
+                    .Where(p => p.IdProduct == idProduct)
+                    .ExecuteUpdateAsync(s => s.SetProperty(p => p.StockQuantity, p => p.StockQuantity + quantity));
+            }
+
+            // COMMIT: el estado y el inventario cambian juntos 
+            await transaction.CommitAsync();
+            return true;
+        });
+
+        return result;
+    }
+}

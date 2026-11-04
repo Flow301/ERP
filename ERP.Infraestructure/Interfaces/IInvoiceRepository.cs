@@ -19,4 +19,8 @@ public interface IInvoiceRepository
 
     // NUEVO el proceso transaccional: devuelve el IdInvoice, o null si se revirtió 
     Task<int?> CreateAsync(Invoice invoice);
+
+    // RETO  anular: devuelve false si la factura ya estaba anulada al momento de escribir
+    // El estado "anulada" lo decide el servicio (InvoiceService.StatusVoided); el repositorio solo guarda
+    Task<bool> VoidAsync(int idInvoice, int idStatusVoided);
 }

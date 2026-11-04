@@ -122,6 +122,8 @@ idCustomer)
             var product = products[shortage.IdProduct];
             return Result<InvoiceDetailDto>.Failure(409, "Conflict",
                 $"Insufficient stock for {product.ProductName}: available {product.StockQuantity}, requested {shortage.Quantity}!");
+        }
+
             // Impuestos de las líneas 
             var taxIds = invoice.Items.Select(i => i.IdTax).Distinct().ToList();
             var taxes = (await _repository.GetTaxesAsync(taxIds)).ToDictionary(t => t.IdTax);
@@ -181,10 +183,48 @@ idCustomer)
             var result = Result<InvoiceDetailDto>.Success(data, 201, "Created", detail);
 
             return result;
+    }
+
+    // ===================================================================== 
+    // RETO  PROCESO DE NEGOCIO: ANULAR FACTURA 
+    // Una factura emitida no se borra: se anula y su inventario vuelve al catálogo. 
+    // ===================================================================== 
+
+    public async Task<Result<InvoiceDetailDto>> VoidAsync(int id)
+    {
+        // ---------- 1. Reglas de negocio (antes de abrir la transacción) ---------- 
+
+        var invoice = await _repository.GetByIdAsync(id);
+
+        if (invoice is null)
+            return Result<InvoiceDetailDto>.Failure(404, "Not Found", $"Invoice {id} doesn't exist!");
+
+        // Anular dos veces devolvería el inventario dos veces 
+        if (invoice.IdInvoiceStatus == StatusVoided)
+            return Result<InvoiceDetailDto>.Failure(409, "Conflict", $"Invoice {id} is already voided!");
+
+        // ---------- 2. Anular como una única operación lógica ---------- 
+
+        var voided = await _repository.VoidAsync(id, StatusVoided);
+
+        if (!voided)
+        {
+            // Otra petición la anuló entre la lectura y el UPDATE: no se tocó el inventario 
+            _logger.LogWarning("Anulación revertida para la factura {IdInvoice}: ya estaba anulada", id);
+
+            return Result<InvoiceDetailDto>.Failure(409, "Conflict", $"Invoice {id} is already voided!");
         }
+
+        // ---------- 3. Leer lo guardado y responder ---------- 
+
+        var saved = await _repository.GetByIdAsync(id);
+
+        var data = _mapper.Map<InvoiceDetailDto>(saved!);
+
+        _logger.LogInformation("Factura {IdInvoice} anulada: {Lines} líneas devueltas al inventario", id, data.Items.Count);
+
+        var result = Result<InvoiceDetailDto>.Success(data, 200, "OK", $"Invoice {id} voided!");
+
+        return result;
     }
 }
-
-
-
-

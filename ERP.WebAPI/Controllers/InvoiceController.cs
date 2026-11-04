@@ -92,6 +92,27 @@ public class InvoiceController : ControllerBase
         // 201 Created + encabezado Location: /api/Invoice/{id} 
         return CreatedAtRoute("GetInvoiceById", new { id = result.Data!.IdInvoice }, result);
     }
+
+    /// <summary> 
+    /// Anula una factura y devuelve al inventario la cantidad de cada línea. 
+    /// </summary> 
+    /// <remarks> 
+    /// Una factura emitida no se edita ni se borra: se anula (estado 3 = Anulada).
+    /// El cambio de estado y la devolución del inventario se hacen en la misma transacción.
+    /// Una factura ya anulada no se puede anular otra vez.
+    /// </remarks> 
+    /// <param name="id" example="6">Número de factura.</param> 
+    /// <response code="200">Factura anulada; data trae la factura con IdInvoiceStatus = 3.</response> 
+    /// <response code="404">La factura no existe.</response> 
+    /// <response code="409">La factura ya estaba anulada; el inventario no cambió.</response> 
+    [HttpPut("{id:int}/void")]
+    [ProducesResponseType<Result<InvoiceDetailDto>>(200)]
+    [ProducesResponseType<Result<object>>(404)]
+    [ProducesResponseType<Result<object>>(409)]
+    public async Task<IActionResult> VoidAsync(int id)
+    {
+        var result = await _service.VoidAsync(id);
+
+        return StatusCode(result.Status, result);
+    }
 }
-
-
