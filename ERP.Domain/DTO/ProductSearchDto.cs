@@ -11,6 +11,8 @@ public record class ProductSearchDto : IValidatableObject
     /// <summary>Texto que debe contener el nombre del producto.</summary>
     /// <example>camisa</example>
     [StringLength(100, ErrorMessage = "El texto a buscar no puede superar 100 caracteres.")]
+    [RegularExpression(@"^[\p{L}\p{N}\s.\-]*$",
+        ErrorMessage = "El texto a buscar solo admite letras, números, espacios, punto y guion.")] // NUEVO
     public string? Name { get; set; }
     // ----- Filtros -----
     /// <summary>Precio mínimo (inclusive).</summary>

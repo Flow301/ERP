@@ -11,9 +11,11 @@ public record class WarehouseCreateDto
     /// <example>Bodega Norte Liberia</example>
     [Required(ErrorMessage = "El nombre de la bodega es obligatorio.")]
     [StringLength(80, ErrorMessage = "El nombre de la bodega no puede superar 80 caracteres.")]
+    [RegularExpression(@"^[^<>]*$", ErrorMessage = "No se permiten los caracteres < y >.")]
     public string? WarehouseName { get; set; }
     /// <summary>Dirección de la bodega: opcional, máximo 120 caracteres.</summary>
     /// <example>Guanacaste, Liberia</example>
     [StringLength(120, ErrorMessage = "La dirección no puede superar 120 caracteres.")]
+    [RegularExpression(@"^[^<>]*$", ErrorMessage = "No se permiten los caracteres < y >.")]
     public string? Address { get; set; }
 }

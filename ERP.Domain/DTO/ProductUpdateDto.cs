@@ -7,8 +7,10 @@ using ERP.Domain.Validations;
 public record class ProductUpdateDto
 {
     [Required, StringLength(100)]
+    [RegularExpression(@"^[^<>]*$", ErrorMessage = "No se permiten los caracteres < y >.")]
     public string? ProductName { get; set; }
     [Required, StringLength(500)]
+    [RegularExpression(@"^[^<>]*$", ErrorMessage = "No se permiten los caracteres < y >.")]
     public string? Description { get; set; }
     [Range(0.01, 999999.99)]
     public decimal Price { get; set; }
