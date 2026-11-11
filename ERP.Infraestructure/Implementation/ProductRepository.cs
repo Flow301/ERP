@@ -285,9 +285,9 @@ public class ProductRepository : IProductRepository
         await _context.SaveChangesAsync();
     }
 
+    // Búsqueda con filtros opcionales: cada filtro se agrega solo si viene un valor
     // Filtros + búsqueda + ordenamiento + paginación, en UNA consulta a SQL Server
-    public async Task<(IEnumerable<Product> Items, int TotalRecords)>
-SearchAsync(ProductSearchDto search)
+    public async Task<(IEnumerable<Product> Items, int TotalRecords)>SearchAsync(ProductSearchDto search)
     {
         // 1. Punto de partida: IQueryable todavía no ejecuta nada en la base
         IQueryable<Product> query = _context.Product
@@ -313,8 +313,7 @@ SearchAsync(ProductSearchDto search)
         // 3. Total ANTES de paginar: SELECT COUNT(*) con los mismos filtros
         var totalRecords = await query.CountAsync();
         // 4. Ordenamiento: lista blanca con switch (nunca el texto del cliente directo a la consulta)
- var descending = string.Equals(search.SortDirection, "desc",
-StringComparison.OrdinalIgnoreCase);
+        var descending = string.Equals(search.SortDirection, "desc", StringComparison.OrdinalIgnoreCase);
         IOrderedQueryable<Product> ordered = search.SortBy?.ToLowerInvariant() switch
         {
             "price" => descending ? query.OrderByDescending(p => p.Price) : query.OrderBy(p =>
@@ -337,7 +336,6 @@ StringComparison.OrdinalIgnoreCase);
         return result;
     }
 
-
     // Regla de negocio: no dos productos ACTIVOS con el mismo nombre.
     // SQL Server compara sin distinguir mayúsculas (collation por defecto): no hace falta ToLower()
     public async Task<bool> ExistsByNameAsync(string productName, int? excludeId = null)
@@ -348,4 +346,5 @@ StringComparison.OrdinalIgnoreCase);
         && (excludeId == null || p.IdProduct != excludeId));
         return result;
     }
+
 }

@@ -1,6 +1,6 @@
 ﻿namespace ERP.Domain.DTO;
 /// <summary>
-/// DTO de ESTADÍSTICAS: resultado de un GroupBy. Todos sus valores los calcula SQL Server.
+/// DTO de ESTADÍSTICAS: resultado de un GroupBy. Todos sus valores los calcula SQLServer.
 /// </summary>
 public record class CategoryStatsDto
 {

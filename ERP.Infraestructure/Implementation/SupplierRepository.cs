@@ -119,5 +119,4 @@ public class SupplierRepository : ISupplierRepository
         && (excludeId == null || s.IdSupplier != excludeId));
         return result;
     }
-
 }

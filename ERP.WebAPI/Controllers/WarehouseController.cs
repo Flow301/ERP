@@ -11,7 +11,7 @@ namespace ERP.WebAPI.Controllers;
 [Route("api/[controller]")]
 [ApiController]
 [Produces("application/json")]
-[ProducesResponseType<Result<object>>(StatusCodes.Status500InternalServerError)] // aplica a TODAS las acciones
+[ProducesResponseType<Result<object>>(StatusCodes.Status500InternalServerError)]   // aplica a TODAS las acciones
 public class WarehouseController : ControllerBase
 {
     private readonly IWarehouseService _service;
@@ -24,10 +24,10 @@ public class WarehouseController : ControllerBase
     /// <summary>
     /// Lista todas las bodegas.
     /// </summary>
-    /// <response code="200">Lista de bodegas ordenada por Id.</response>
+    /// <response code="200">Lista de bodegas.</response>
     [HttpGet]
     [ProducesResponseType<Result<IEnumerable<WarehouseDto>>>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetAllAsync()
+    public async Task<IActionResult> GetAll()
     {
         var result = await _service.GetAllAsync();
 
@@ -41,10 +41,10 @@ public class WarehouseController : ControllerBase
     /// <param name="pageSize" example="10">Registros por página (1 a 50).</param>
     /// <response code="200">Página de bodegas con pageNumber, pageSize, totalRecords y totalPages.</response>
     /// <response code="400">pageNumber o pageSize fuera de rango.</response>
-    [HttpGet("{pageNumber:int}/{pageSize:int}")]
+    [HttpGet("pagination")]
     [ProducesResponseType<Result<IEnumerable<WarehouseDto>>>(StatusCodes.Status200OK)]
     [ProducesResponseType<Result<object>>(StatusCodes.Status400BadRequest)]
-    public async Task<IActionResult> GetPaginationAsync(int pageNumber = 1, int pageSize = 10)
+    public async Task<IActionResult> GetPagination([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
     {
         var result = await _service.GetPaginationAsync(pageNumber, pageSize);
 
@@ -57,10 +57,10 @@ public class WarehouseController : ControllerBase
     /// <param name="id" example="1">Id de la bodega.</param>
     /// <response code="200">Detalle de la bodega.</response>
     /// <response code="404">La bodega no existe.</response>
-    [HttpGet("{id:int}", Name = "GetWarehouseById")]
+    [HttpGet("{id:int}")]
     [ProducesResponseType<Result<WarehouseDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType<Result<object>>(StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> GetByIdAsync(int id)
+    public async Task<IActionResult> GetById(int id)
     {
         var result = await _service.GetByIdAsync(id);
 
@@ -68,11 +68,11 @@ public class WarehouseController : ControllerBase
     }
 
     /// <summary>
-    /// Registra una bodega NUEVA.
+    /// Registra una bodega nueva.
     /// </summary>
     /// <remarks>
-    /// El nombre es obligatorio (máximo 80 caracteres) y no se puede repetir.
-    /// La dirección es opcional (máximo 120 caracteres). El Id lo asigna el servidor.
+    /// El nombre de la bodega es obligatorio y no se puede repetir.
+    /// El Id lo asigna el servidor.
     /// </remarks>
     /// <param name="warehouse">Datos de la bodega.</param>
     /// <response code="201">Bodega creada; el encabezado Location apunta a GET api/Warehouse/{id}.</response>
@@ -82,7 +82,7 @@ public class WarehouseController : ControllerBase
     [ProducesResponseType<Result<WarehouseDto>>(StatusCodes.Status201Created)]
     [ProducesResponseType<Result<Dictionary<string, string[]>>>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<Result<object>>(StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> AddAsync([FromBody] WarehouseCreateDto warehouse)
+    public async Task<IActionResult> Create([FromBody] WarehouseCreateDto warehouse)
     {
         var result = await _service.AddAsync(warehouse);
 
@@ -90,19 +90,16 @@ public class WarehouseController : ControllerBase
             return StatusCode(result.Status, result);
 
         // 201 Created + encabezado Location: /api/Warehouse/{id}
-        return CreatedAtRoute("GetWarehouseById", new { id = result.Data!.IdWarehouse }, result);
+        return CreatedAtAction(nameof(GetById), new { id = result.Data!.IdWarehouse }, result);
     }
 
     /// <summary>
     /// Actualiza los datos de una bodega.
     /// </summary>
-    /// <remarks>
-    /// Se puede conservar el nombre actual; solo es un conflicto si el nombre pertenece a OTRA bodega.
-    /// </remarks>
     /// <param name="id" example="1">Id de la bodega (de la ruta, nunca del cuerpo).</param>
-    /// <param name="warehouse">Datos NUEVOS de la bodega.</param>
+    /// <param name="warehouse">Datos nuevos de la bodega.</param>
     /// <response code="200">Bodega actualizada.</response>
-    /// <response code="400">Datos inválidos; data indica el error de cada campo.</response>
+    /// <response code="400">Datos inválidos.</response>
     /// <response code="404">La bodega no existe.</response>
     /// <response code="409">El nombre pertenece a otra bodega.</response>
     [HttpPut("{id:int}")]
@@ -110,7 +107,7 @@ public class WarehouseController : ControllerBase
     [ProducesResponseType<Result<Dictionary<string, string[]>>>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<Result<object>>(StatusCodes.Status404NotFound)]
     [ProducesResponseType<Result<object>>(StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> UpdateAsync([FromRoute] int id, [FromBody] WarehouseUpdateDto warehouse)
+    public async Task<IActionResult> Update([FromRoute] int id, [FromBody] WarehouseUpdateDto warehouse)
     {
         var result = await _service.UpdateAsync(id, warehouse);
 
@@ -118,9 +115,9 @@ public class WarehouseController : ControllerBase
     }
 
     /// <summary>
-    /// Elimina una bodega que no tiene productos.
+    /// Elimina una bodega que no tiene productos asociados.
     /// </summary>
-    /// <param name="id" example="100">Id de la bodega.</param>
+    /// <param name="id" example="1">Id de la bodega.</param>
     /// <response code="200">Bodega eliminada; data = Id eliminado.</response>
     /// <response code="404">La bodega no existe.</response>
     /// <response code="409">La bodega tiene productos y no se puede eliminar.</response>
@@ -128,7 +125,7 @@ public class WarehouseController : ControllerBase
     [ProducesResponseType<Result<int>>(StatusCodes.Status200OK)]
     [ProducesResponseType<Result<object>>(StatusCodes.Status404NotFound)]
     [ProducesResponseType<Result<object>>(StatusCodes.Status409Conflict)]
-    public async Task<IActionResult> DeleteAsync(int id)
+    public async Task<IActionResult> Delete(int id)
     {
         var result = await _service.DeleteAsync(id);
 

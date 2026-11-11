@@ -1,19 +1,28 @@
 ﻿using System.ComponentModel.DataAnnotations;
+
 namespace ERP.Domain.DTO;
 
 public record class SupplierUpdateDto
 {
-    [Required, StringLength(100)]
+    [Required(ErrorMessage = "El nombre del proveedor es obligatorio.")]
+    [StringLength(100, MinimumLength = 3, ErrorMessage = "El nombre debe tener entre 3 y 100 caracteres.")]
     [RegularExpression(@"^[^<>]*$", ErrorMessage = "No se permiten los caracteres < y >.")]
     public string? SupplierName { get; set; }
-    [Required, StringLength(20)]
+
+    [Required(ErrorMessage = "La cédula jurídica es obligatoria.")]
+    [RegularExpression(@"^\d-\d{3}-\d{6}$", ErrorMessage = "La cédula jurídica debe tener el formato 3-101-123456.")]
     public string? LegalEntityNumber { get; set; }
-    [StringLength(20)]
+
+    [RegularExpression(@"^\d{4}-?\d{4}$", ErrorMessage = "El teléfono debe tener 8 dígitos, con o sin guion: 2201-1001.")]
     public string? Phone { get; set; }
-    [EmailAddress, StringLength(100)]
+
+    [EmailAddress(ErrorMessage = "El formato del correo no es válido.")]
+    [StringLength(100, ErrorMessage = "El correo no puede superar 100 caracteres.")]
     public string? Email { get; set; }
-    [StringLength(200)]
+
+    [StringLength(200, ErrorMessage = "La dirección no puede superar 200 caracteres.")]
     [RegularExpression(@"^[^<>]*$", ErrorMessage = "No se permiten los caracteres < y >.")]
     public string? Address { get; set; }
+
     public bool Status { get; set; }
 }

@@ -1,5 +1,4 @@
 ﻿using ERP.Domain.Entities;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -43,7 +42,8 @@ namespace ERP.Infraestructure.Data.Seed
                 Status = true
             };
             // Nunca texto plano: se guarda el hash (PBKDF2 con salt aleatorio)
-            admin.Password = new PasswordHasher<User>().HashPassword(admin, adminPassword);
+            // AHORA : BCrypt genera el salt y lo guarda dentro del hash; costo 12 = 2^12 rondas
+            admin.Password = BCrypt.Net.BCrypt.HashPassword(adminPassword, workFactor: 12);
             return admin;
         }
     }

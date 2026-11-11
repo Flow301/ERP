@@ -6,28 +6,28 @@ using ERP.Domain.Entities;
 using ERP.Infraestructure.Interfaces;
 using MapsterMapper;
 using Microsoft.Extensions.Logging;
+
 namespace ERP.Application.Implementation;
 
 public class InvoiceService : IInvoiceService
 {
-    // Regla de negocio: una factura no puede nacer anulada (3 = Anulada en CatalogSeeder) 
+    // Regla de negocio: una factura no puede nacer anulada (3 = Anulada en CatalogSeeder)
     public const int StatusVoided = 3;
 
     private readonly IInvoiceRepository _repository;
     private readonly IMapper _mapper;
-    private readonly ILogger<InvoiceService> _logger;          // NUEVO 
+    private readonly ILogger<InvoiceService> _logger;   // NUEVO
 
-    public InvoiceService(IInvoiceRepository repository, IMapper mapper,
-ILogger<InvoiceService> logger)
+    public InvoiceService(IInvoiceRepository repository, IMapper mapper, ILogger<InvoiceService> logger)
     {
         _repository = repository;
         _mapper = mapper;
         _logger = logger;
     }
 
-    // ===================================================================== 
-    // CONSULTAS (ADAPTADAS: ahora devuelven Result<T>) 
-    // ===================================================================== 
+    // =====================================================================
+    // CONSULTAS (ADAPTADAS: ahora devuelven Result<T>)
+    // =====================================================================
 
     public async Task<Result<InvoiceDetailDto>> GetByIdAsync(int id)
     {
@@ -35,6 +35,7 @@ ILogger<InvoiceService> logger)
 
         if (invoice is null)
             return Result<InvoiceDetailDto>.Failure(404, "Not Found", $"Invoice {id} doesn't exist!");
+
         var data = _mapper.Map<InvoiceDetailDto>(invoice);
 
         var result = Result<InvoiceDetailDto>.Success(data);
@@ -42,14 +43,13 @@ ILogger<InvoiceService> logger)
         return result;
     }
 
-    public async Task<Result<IEnumerable<InvoiceDetailDto>>> GetByCustomerAsync(string
-idCustomer)
+    public async Task<Result<IEnumerable<InvoiceDetailDto>>> GetByCustomerAsync(string idCustomer)
     {
         var invoices = await _repository.GetByCustomerAsync(idCustomer.Trim());
 
         var data = _mapper.Map<IEnumerable<InvoiceDetailDto>>(invoices);
 
-        // Cliente sin facturas → 200 con [] (no es un error) 
+        // Cliente sin facturas → 200 con [] (no es un error)
         var result = Result<IEnumerable<InvoiceDetailDto>>.Success(data);
 
         return result;
@@ -60,50 +60,46 @@ idCustomer)
         var lines = await _repository.GetLinesAsync(idInvoice);
 
         if (!lines.Any())
-            return Result<IEnumerable<InvoiceItemDto>>.Failure(404, "Not Found", $"Invoice {idInvoice}doesn't exist!");
-
+            return Result<IEnumerable<InvoiceItemDto>>.Failure(404, "Not Found", $"Invoice {idInvoice} doesn't exist!");
 
         var data = _mapper.Map<IEnumerable<InvoiceItemDto>>(lines);
 
         var result = Result<IEnumerable<InvoiceItemDto>>.Success(data);
+
         return result;
     }
 
-    // ===================================================================== 
-    // NUEVO  PROCESO DE NEGOCIO: REGISTRAR FACTURA 
-    // ===================================================================== 
+    // =====================================================================
+    // NUEVO PROCESO DE NEGOCIO: REGISTRAR FACTURA
+    // =====================================================================
 
     public async Task<Result<InvoiceDetailDto>> RegisterAsync(InvoiceCreateDto invoice)
     {
         var idCustomer = invoice.IdCustomer!.Trim();
 
-        // ---------- 1. Reglas de negocio e integridad referencial (antes de tocar datos) ---------- 
+        // ---------- 1. Reglas de negocio e integridad referencial (antes de tocar datos) ----------
 
         if (!await _repository.CustomerExistsAsync(idCustomer))
             return Result<InvoiceDetailDto>.Failure(400, "Bad Request", $"Customer {idCustomer} doesn't exist!");
 
-
         if (!await _repository.ActiveUserExistsAsync(invoice.IdUser))
             return Result<InvoiceDetailDto>.Failure(400, "Bad Request", $"User {invoice.IdUser} doesn't exist or is inactive!");
 
-
         if (!await _repository.PaymentTypeExistsAsync(invoice.IdPaymentType))
-            return Result<InvoiceDetailDto>.Failure(400, "Bad Request", $"Payment type {invoice.IdPaymentType}doesn't exist!");
-
+            return Result<InvoiceDetailDto>.Failure(400, "Bad Request", $"Payment type {invoice.IdPaymentType} doesn't exist!");
 
         if (invoice.IdInvoiceStatus == StatusVoided)
             return Result<InvoiceDetailDto>.Failure(400, "Bad Request", "An invoice can't be created as voided!");
 
-
         if (!await _repository.InvoiceStatusExistsAsync(invoice.IdInvoiceStatus))
-            return Result<InvoiceDetailDto>.Failure(400, "Bad Request", $"Invoice status {invoice.IdInvoiceStatus}doesn't exist!");
+            return Result<InvoiceDetailDto>.Failure(400, "Bad Request", $"Invoice status {invoice.IdInvoiceStatus} doesn't exist!");
 
-        // El DTO ya garantizó que la tarjeta viene solo cuando el pago es con tarjeta 
+        // El DTO ya garantizó que la tarjeta viene solo cuando el pago es con tarjeta
         if (invoice.IdCreditCard is not null &&
             !await _repository.CreditCardExistsAsync(invoice.IdCreditCard.Value))
-            return Result<InvoiceDetailDto>.Failure(400, "Bad Request", $"Credit card {invoice.IdCreditCard}doesn't exist!");
+            return Result<InvoiceDetailDto>.Failure(400, "Bad Request", $"Credit card {invoice.IdCreditCard} doesn't exist!");
 
-        // Productos: una sola consulta para todas las líneas 
+        // Productos: una sola consulta para todas las líneas
         var productIds = invoice.Items.Select(i => i.IdProduct).ToList();
         var products = (await _repository.GetProductsAsync(productIds)).ToDictionary(p => p.IdProduct);
 
@@ -124,104 +120,95 @@ idCustomer)
                 $"Insufficient stock for {product.ProductName}: available {product.StockQuantity}, requested {shortage.Quantity}!");
         }
 
-            // Impuestos de las líneas 
-            var taxIds = invoice.Items.Select(i => i.IdTax).Distinct().ToList();
-            var taxes = (await _repository.GetTaxesAsync(taxIds)).ToDictionary(t => t.IdTax);
+        // Impuestos de las líneas
+        var taxIds = invoice.Items.Select(i => i.IdTax).Distinct().ToList();
+        var taxes = (await _repository.GetTaxesAsync(taxIds)).ToDictionary(t => t.IdTax);
 
-            var missingTaxes = taxIds.Where(id => !taxes.ContainsKey(id)).ToList();
+        var missingTaxes = taxIds.Where(id => !taxes.ContainsKey(id)).ToList();
 
-            if (missingTaxes.Any())
-                return Result<InvoiceDetailDto>.Failure(400, "Bad Request",
-                    $"Taxes don't exist: {string.Join(", ", missingTaxes)}!");
+        if (missingTaxes.Any())
+            return Result<InvoiceDetailDto>.Failure(400, "Bad Request",
+                $"Taxes don't exist: {string.Join(", ", missingTaxes)}!");
 
-            // ---------- 2. Armar la factura en memoria ---------- 
+        // ---------- 2. Armar la factura en memoria ----------
 
-            var entity = _mapper.Map<Invoice>(invoice);         // encabezado: los campos con el mismo nombre
-            entity.IdCustomer = idCustomer;
-            entity.InvoiceDate = DateTime.Now;                  // la fecha la pone el servidor, nunca el cliente
+        var entity = _mapper.Map<Invoice>(invoice);  // encabezado: los campos con el mismo nombre
+        entity.IdCustomer = idCustomer;
+        entity.InvoiceDate = DateTime.Now;           // la fecha la pone el servidor, nunca el cliente
 
-            var lineNumber = 1;
-            foreach (var line in invoice.Items)
+        var lineNumber = 1;
+        foreach (var line in invoice.Items)
+        {
+            entity.InvoiceItems.Add(new InvoiceItem
             {
-                entity.InvoiceItems.Add(new InvoiceItem
-                {
-                    LineNumber = lineNumber++,
-                    IdProduct = line.IdProduct,
-                    IdTax = line.IdTax,
-                    Quantity = line.Quantity,
-                    Price = products[line.IdProduct].Price      // precio CONGELADO: el del catálogo hoy 
-                });
-            }
-            // ---------- 3. Guardar todo como una única operación lógica ---------- 
+                LineNumber = lineNumber++,
+                IdProduct = line.IdProduct,
+                IdTax = line.IdTax,
+                Quantity = line.Quantity,
+                Price = products[line.IdProduct].Price // precio CONGELADO: el del catálogo hoy
+            });
+        }
 
-            var idInvoice = await _repository.CreateAsync(entity);
+        // ---------- 3. Guardar todo como una única operación lógica ----------
 
-            if (idInvoice is null)
-            {
-                _logger.LogWarning("Factura revertida para el cliente {IdCustomer}: el inventario cambió durante el registro",
+        var idInvoice = await _repository.CreateAsync(entity);
 
-                    idCustomer);
+        if (idInvoice is null)
+        {
+            _logger.LogWarning("Factura revertida para el cliente {IdCustomer}: el inventario cambió durante el registro",
+                idCustomer);
 
-                return Result<InvoiceDetailDto>.Failure(409, "Conflict",
-                    "The stock changed while saving. Nothing was saved, please try again!");
-            }
+            return Result<InvoiceDetailDto>.Failure(409, "Conflict",
+                "The stock changed while saving. Nothing was saved, please try again!");
+        }
 
-            // ---------- 4. Leer lo guardado: subtotal, IVA y total ---------- 
-            // Los totales NO se guardan: son los campos calculados de MapsterConfig 
-            // (LineSubtotal y LineTax), los mismos que usa GET api/Invoice/{id}. 
+        // ---------- 4. Leer lo guardado: subtotal, IVA y total ----------
+        // Los totales NO se guardan: son los campos calculados de MapsterConfig
+        // (LineSubtotal y LineTax), los mismos que usa GET api/Invoice/{id}.
 
-            var saved = await _repository.GetByIdAsync(idInvoice.Value);
+        var saved = await _repository.GetByIdAsync(idInvoice.Value);
 
-            var data = _mapper.Map<InvoiceDetailDto>(saved!);
+        var data = _mapper.Map<InvoiceDetailDto>(saved!);
 
-            _logger.LogInformation("Factura {IdInvoice} registrada: {Lines} líneas, subtotal { Subtotal}, IVA { Tax}, total { Total}",
+        _logger.LogInformation("Factura {IdInvoice} registrada: {Lines} líneas, subtotal {Subtotal}, IVA {Tax}, total {Total}",
             idInvoice, data.Items.Count, data.Subtotal, data.Tax, data.Total);
 
-            // ---------- 5. Responder ---------- 
+        // ---------- 5. Responder ----------
 
-            var detail = string.Create(CultureInfo.InvariantCulture, $"Invoice {idInvoice} saved! Total: {data.Total:0.00}");
-            var result = Result<InvoiceDetailDto>.Success(data, 201, "Created", detail);
+        var detail = string.Create(CultureInfo.InvariantCulture, $"Invoice {idInvoice} saved! Total: {data.Total:0.00}");
 
-            return result;
+        var result = Result<InvoiceDetailDto>.Success(data, 201, "Created", detail);
+
+        return result;
     }
 
-    // ===================================================================== 
-    // RETO  PROCESO DE NEGOCIO: ANULAR FACTURA 
-    // Una factura emitida no se borra: se anula y su inventario vuelve al catálogo. 
-    // ===================================================================== 
+    // =====================================================================
+    // RETO: ANULAR FACTURA
+    // =====================================================================
 
     public async Task<Result<InvoiceDetailDto>> VoidAsync(int id)
     {
-        // ---------- 1. Reglas de negocio (antes de abrir la transacción) ---------- 
-
         var invoice = await _repository.GetByIdAsync(id);
 
         if (invoice is null)
             return Result<InvoiceDetailDto>.Failure(404, "Not Found", $"Invoice {id} doesn't exist!");
 
-        // Anular dos veces devolvería el inventario dos veces 
+        // Anular dos veces devolvería el inventario dos veces
         if (invoice.IdInvoiceStatus == StatusVoided)
             return Result<InvoiceDetailDto>.Failure(409, "Conflict", $"Invoice {id} is already voided!");
 
-        // ---------- 2. Anular como una única operación lógica ---------- 
-
         var voided = await _repository.VoidAsync(id, StatusVoided);
 
+        // Otra petición la anuló entre la lectura y el UPDATE
         if (!voided)
-        {
-            // Otra petición la anuló entre la lectura y el UPDATE: no se tocó el inventario 
-            _logger.LogWarning("Anulación revertida para la factura {IdInvoice}: ya estaba anulada", id);
-
             return Result<InvoiceDetailDto>.Failure(409, "Conflict", $"Invoice {id} is already voided!");
-        }
-
-        // ---------- 3. Leer lo guardado y responder ---------- 
 
         var saved = await _repository.GetByIdAsync(id);
 
         var data = _mapper.Map<InvoiceDetailDto>(saved!);
 
-        _logger.LogInformation("Factura {IdInvoice} anulada: {Lines} líneas devueltas al inventario", id, data.Items.Count);
+        _logger.LogInformation("Factura {IdInvoice} anulada: {Lines} líneas devueltas al inventario",
+            id, data.Items.Count);
 
         var result = Result<InvoiceDetailDto>.Success(data, 200, "OK", $"Invoice {id} voided!");
 

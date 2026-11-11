@@ -19,9 +19,6 @@ public interface IProductRepository
     Task<IEnumerable<Product>> GetByWarehouseIdAsync(int idWarehouse);
     Task<IEnumerable<Product>> GetByWarehouseNameAsync(string name);
     Task<IEnumerable<CategoryStatsDto>> GetStatsByCategoryAsync();
-    //Recibe el DTO de búsqueda y devuelve la página + el total de registros del filtro
-    Task<(IEnumerable<Product> Items, int TotalRecords)> SearchAsync(ProductSearchDto
-   search);
     // ----- NUEVO: verificaciones de las relaciones -----
     Task<bool> CategoryExistsAsync(int idCategory);
     Task<bool> WarehouseExistsAsync(int idWarehouse);
@@ -33,8 +30,9 @@ public interface IProductRepository
     void RemoveSupplierLinks(IEnumerable<ProductSupplier> links);
     Task SaveChangesAsync();
 
+    //Recibe el DTO de búsqueda y devuelve la página + el total de registros del filtro
+    Task<(IEnumerable<Product> Items, int TotalRecords)> SearchAsync(ProductSearchDto search);
+
     Task<bool> ExistsByNameAsync(string productName, int? excludeId = null);
-
-
 
 }

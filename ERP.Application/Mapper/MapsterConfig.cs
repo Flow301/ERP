@@ -82,32 +82,20 @@ public static class MapsterConfig
             .Map(dest => dest.Subtotal, src => src.InvoiceItems.Sum(ii => LineSubtotal(ii)))
             .Map(dest => dest.Tax, src => src.InvoiceItems.Sum(ii => LineTax(ii)))
             .Map(dest => dest.Total, src => src.InvoiceItems.Sum(ii => LineSubtotal(ii) + LineTax(ii)));
-
-
         // =====================================================================
         // Supplier (CRUD)
         // Entidad → DTO de salida (SupplierListDto, SupplierDetailDto): mismos nombres,
         // Mapster los copia solo; no necesitan configuración.
-        // DTO de entrada → entidad: se ignoran explícitamente los campos que el client envía.
-         // =====================================================================
+        // DTO de entrada → entidad: se ignoran explícitamente los campos que el cliente No envía.
+        // =====================================================================
          TypeAdapterConfig<SupplierCreateDto, Supplier>
-         .NewConfig()
-         .Ignore(dest => dest.IdSupplier) // lo asigna el repositorio
-         .Ignore(dest => dest.Status); // lo asigna el servicio: todo proveedor nuevo nace activo
- TypeAdapterConfig<SupplierUpdateDto, Supplier>
- .NewConfig()
- .Ignore(dest => dest.IdSupplier); // viene de la ruta, no del body
+             .NewConfig()
+             .Ignore(dest => dest.IdSupplier) // lo asigna el repositorio
+             .Ignore(dest => dest.Status); // lo asigna el servicio: todo proveedor nuevo nace activo
+         TypeAdapterConfig<SupplierUpdateDto, Supplier>
+             .NewConfig()
+             .Ignore(dest => dest.IdSupplier); // viene de la ruta, no del body
 
-        // =====================================================================
-        // Warehouse (CRUD) — misma idea que Supplier
-        // Warehouse → WarehouseDto: mismos nombres, no necesita configuración.
-        // =====================================================================
-        TypeAdapterConfig<WarehouseCreateDto, Warehouse>
-            .NewConfig()
-            .Ignore(dest => dest.IdWarehouse);  // lo asigna el repositorio
-        TypeAdapterConfig<WarehouseUpdateDto, Warehouse>
-            .NewConfig()
-            .Ignore(dest => dest.IdWarehouse);  // viene de la ruta, no del body
         // =====================================================================
         // Product: DTOs de entrada → entidad (CRUD con relaciones)
         // Las propiedades simples y las llaves foráneas (IdCategory, IdWarehouse)
@@ -134,13 +122,11 @@ public static class MapsterConfig
         .Map(dest => dest.Image, src => src.Image ?? string.Empty);
         //Image ?? string.Empty: si el cliente no envía imagen, se guarda una cadena vacía en lugar de null.
 
-        // ===================================================================== 
-        //  InvoiceCreateDto → Invoice (solo el encabezado; las líneas las arma el servicio) 
-        // ===================================================================== 
+        // =====================================================================
+        // InvoiceCreateDto → Invoice (solo el encabezado; las líneas las arma el servicio)
+        // =====================================================================
         TypeAdapterConfig<InvoiceCreateDto, Invoice>
-        .NewConfig()
-        .Ignore(dest => dest.InvoiceItems);
+            .NewConfig()
+            .Ignore(dest => dest.InvoiceItems);
     }
-
-
 }

@@ -1,5 +1,4 @@
 ﻿using System.ComponentModel.DataAnnotations;
-namespace ERP.Domain.DTO;
 
 /// <summary>
 /// Parámetros de consulta de GET api/Product/search: filtros, búsqueda, ordenamiento y paginación.
@@ -11,8 +10,8 @@ public record class ProductSearchDto : IValidatableObject
     /// <summary>Texto que debe contener el nombre del producto.</summary>
     /// <example>camisa</example>
     [StringLength(100, ErrorMessage = "El texto a buscar no puede superar 100 caracteres.")]
-    [RegularExpression(@"^[\p{L}\p{N}\s.\-]*$",
-        ErrorMessage = "El texto a buscar solo admite letras, números, espacios, punto y guion.")] // NUEVO
+    [RegularExpression(@"^[\p{L}\p{N}\s.\-]*$", ErrorMessage = "El texto a buscar solo admite letras, números, espacios, punto y guion.")]
+    // NUEVO
     public string? Name { get; set; }
     // ----- Filtros -----
     /// <summary>Precio mínimo (inclusive).</summary>
@@ -31,9 +30,9 @@ public record class ProductSearchDto : IValidatableObject
     /// <example>1</example>
     [Range(1, int.MaxValue, ErrorMessage = "El proveedor no es válido.")]
     public int? IdSupplier { get; set; }
-    /// <summary>NUEVO — Estado: true = activos (por defecto), false =desactivados.</summary>
- /// <example>true</example>
- public bool Status { get; set; } = true;
+    /// <summary>NUEVO — Estado: true = activos (por defecto), false = desactivados.</summary>
+    /// <example>true</example>
+    public bool Status { get; set; } = true;
     // ----- Ordenamiento -----
     /// <summary>NUEVO — Campo de orden: name, price, stock o date.</summary>
     /// <example>price</example>
@@ -42,8 +41,8 @@ public record class ProductSearchDto : IValidatableObject
     public string? SortBy { get; set; } = "name";
     /// <summary>NUEVO — Dirección del orden: asc o desc.</summary>
     /// <example>desc</example>
-    [RegularExpression("^(?i)(asc|desc)$", ErrorMessage = "SortDirection solo admite: asc desc.")]
- public string? SortDirection { get; set; } = "asc";
+    [RegularExpression("^(?i)(asc|desc)$", ErrorMessage = "SortDirection solo admite: asc o desc.")]
+    public string? SortDirection { get; set; } = "asc";
     // ----- Paginación -----
     /// <summary>NUEVO — Número de página (desde 1).</summary>
     /// <example>1</example>
@@ -67,5 +66,3 @@ public record class ProductSearchDto : IValidatableObject
         // una búsqueda sin filtros es válida: devuelve la primera página del catálogo.
     }
 }
-    
- 

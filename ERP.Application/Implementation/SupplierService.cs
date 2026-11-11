@@ -72,6 +72,7 @@ public class SupplierService : ISupplierService
 
     public async Task<Result<SupplierDetailDto>> AddAsync(SupplierCreateDto supplier)
     {
+
         // Regla de negocio: la cédula jurídica no se puede repetir
         if (await _repository.ExistsByLegalEntityNumberAsync(supplier.LegalEntityNumber!))
             return Result<SupplierDetailDto>.Failure(409, "Conflict",

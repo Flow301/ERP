@@ -102,3 +102,4 @@ public static partial class DemoData
         new() { IdSupplier = 100, SupplierName = "Estilo Supremo", LegalEntityNumber = "4-101-100100", Phone = "8800-4100", Email = "contacto@estilosupremo.cr", Address = "Guanacaste, Nicoya", Status = true }
     ];
 }
+

@@ -1,21 +1,17 @@
 ﻿using System.ComponentModel.DataAnnotations;
+
 namespace ERP.Domain.DTO;
 
-/// <summary>
-/// Datos para registrar una bodega. Sin IdWarehouse: lo asigna el servidor.
-/// </summary>
-// Los largos coinciden con las columnas de AppDbContext.
-public record class WarehouseCreateDto
+public class WarehouseCreateDto
 {
-    /// <summary>Nombre de la bodega: obligatorio, máximo 80 caracteres y no se repite.</summary>
-    /// <example>Bodega Norte Liberia</example>
     [Required(ErrorMessage = "El nombre de la bodega es obligatorio.")]
-    [StringLength(80, ErrorMessage = "El nombre de la bodega no puede superar 80 caracteres.")]
+    [StringLength(100, ErrorMessage = "El nombre no puede superar los 100 caracteres.")]
     [RegularExpression(@"^[^<>]*$", ErrorMessage = "No se permiten los caracteres < y >.")]
-    public string? WarehouseName { get; set; }
-    /// <summary>Dirección de la bodega: opcional, máximo 120 caracteres.</summary>
-    /// <example>Guanacaste, Liberia</example>
-    [StringLength(120, ErrorMessage = "La dirección no puede superar 120 caracteres.")]
+
+    public string WarehouseName { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "La dirección es obligatoria.")]
+    [StringLength(200, ErrorMessage = "La dirección no puede superar los 200 caracteres.")]
     [RegularExpression(@"^[^<>]*$", ErrorMessage = "No se permiten los caracteres < y >.")]
-    public string? Address { get; set; }
+    public string Address { get; set; } = string.Empty;
 }

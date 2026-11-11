@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Text;
-using ERP.Infraestructure.Data.Seed;
 
 
 namespace ERP.Infraestructure.Data;

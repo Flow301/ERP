@@ -5,9 +5,9 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace ERP.WebAPI.Controllers;
 
-/// <summary> 
-/// Facturación: consulta de facturas y registro de ventas. 
-/// </summary> 
+/// <summary>
+/// Facturación: consulta de facturas y registro de ventas.
+/// </summary>
 [Route("api/[controller]")]
 [ApiController]
 [Produces("application/json")]
@@ -21,12 +21,12 @@ public class InvoiceController : ControllerBase
         _service = service;
     }
 
-    /// <summary> 
-    /// Obtiene una factura con su cliente, líneas y totales. 
-    /// </summary> 
-    /// <param name="id" example="1">Número de factura.</param> 
-    /// <response code="200">Factura encontrada.</response> 
-    /// <response code="404">La factura no existe.</response> 
+    /// <summary>
+    /// Obtiene una factura con su cliente, líneas y totales.
+    /// </summary>
+    /// <param name="id" example="1">Número de factura.</param>
+    /// <response code="200">Factura encontrada.</response>
+    /// <response code="404">La factura no existe.</response>
     [HttpGet("{id:int}", Name = "GetInvoiceById")]
     [ProducesResponseType<Result<InvoiceDetailDto>>(200)]
     [ProducesResponseType<Result<object>>(404)]
@@ -37,12 +37,12 @@ public class InvoiceController : ControllerBase
         return StatusCode(result.Status, result);
     }
 
-    /// <summary> 
-    /// Lista las facturas de un cliente. 
-    /// </summary> 
-    /// <remarks>Un cliente sin facturas responde 200 con una lista vacía.</remarks> 
-    /// <param name="idCustomer" example="101110111">Cédula del cliente.</param> 
-    /// <response code="200">Facturas del cliente (puede ser una lista vacía).</response> 
+    /// <summary>
+    /// Lista las facturas de un cliente.
+    /// </summary>
+    /// <remarks>Un cliente sin facturas responde 200 con una lista vacía.</remarks>
+    /// <param name="idCustomer" example="101110111">Cédula del cliente.</param>
+    /// <response code="200">Facturas del cliente (puede ser una lista vacía).</response>
     [HttpGet("by-customer/{idCustomer}")]
     [ProducesResponseType<Result<IEnumerable<InvoiceDetailDto>>>(200)]
     public async Task<IActionResult> GetByCustomerAsync(string idCustomer)
@@ -51,12 +51,13 @@ public class InvoiceController : ControllerBase
 
         return StatusCode(result.Status, result);
     }
-    /// <summary> 
-    /// Obtiene solo las líneas de una factura. 
-    /// </summary> 
-    /// <param name="id" example="1">Número de factura.</param> 
-    /// <response code="200">Líneas de la factura.</response> 
-    /// <response code="404">La factura no existe.</response> 
+
+    /// <summary>
+    /// Obtiene solo las líneas de una factura.
+    /// </summary>
+    /// <param name="id" example="1">Número de factura.</param>
+    /// <response code="200">Líneas de la factura.</response>
+    /// <response code="404">La factura no existe.</response>
     [HttpGet("{id:int}/lines")]
     [ProducesResponseType<Result<IEnumerable<InvoiceItemDto>>>(200)]
     [ProducesResponseType<Result<object>>(404)]
@@ -67,17 +68,17 @@ public class InvoiceController : ControllerBase
         return StatusCode(result.Status, result);
     }
 
-    /// <summary> 
-    /// Registra una factura completa (encabezado y líneas) como una sola operación. 
-    /// </summary> 
-    /// <remarks> 
+    /// <summary>
+    /// Registra una factura completa (encabezado y líneas) como una sola operación.
+    /// </summary>
+    /// <remarks>
     /// El precio de cada línea se toma del catálogo y el inventario se rebaja en la misma transacción.
     /// Si una regla falla, no se guarda nada. Pagos con tarjeta (2 y 3) exigen IdCreditCard y los últimos 4 dígitos.
-    /// </remarks> 
-    /// <param name="invoice">Encabezado y líneas de la venta.</param> 
-    /// <response code="201">Factura registrada; el encabezado Location apunta a GET api/Invoice/{id}.</response> 
-    /// <response code="400">Datos inválidos o referencias que no existen (cliente, usuario, producto…).</response> 
-    /// <response code="409">Inventario insuficiente; no se guardó nada.</response> 
+    /// </remarks>
+    /// <param name="invoice">Encabezado y líneas de la venta.</param>
+    /// <response code="201">Factura registrada; el encabezado Location apunta a GET api/Invoice/{id}.</response>
+    /// <response code="400">Datos inválidos o referencias que no existen (cliente, usuario, producto...).</response>
+    /// <response code="409">Inventario insuficiente; no se guardó nada.</response>
     [HttpPost]
     [ProducesResponseType<Result<InvoiceDetailDto>>(201)]
     [ProducesResponseType<Result<Dictionary<string, string[]>>>(400)]
@@ -89,22 +90,21 @@ public class InvoiceController : ControllerBase
         if (!result.IsSuccess)
             return StatusCode(result.Status, result);
 
-        // 201 Created + encabezado Location: /api/Invoice/{id} 
+        // 201 Created + encabezado Location: /api/Invoice/{id}
         return CreatedAtRoute("GetInvoiceById", new { id = result.Data!.IdInvoice }, result);
     }
 
-    /// <summary> 
-    /// Anula una factura y devuelve al inventario la cantidad de cada línea. 
-    /// </summary> 
-    /// <remarks> 
-    /// Una factura emitida no se edita ni se borra: se anula (estado 3 = Anulada).
-    /// El cambio de estado y la devolución del inventario se hacen en la misma transacción.
-    /// Una factura ya anulada no se puede anular otra vez.
-    /// </remarks> 
-    /// <param name="id" example="6">Número de factura.</param> 
-    /// <response code="200">Factura anulada; data trae la factura con IdInvoiceStatus = 3.</response> 
-    /// <response code="404">La factura no existe.</response> 
-    /// <response code="409">La factura ya estaba anulada; el inventario no cambió.</response> 
+    /// <summary>
+    /// Anula una factura y devuelve al inventario la cantidad de cada línea.
+    /// </summary>
+    /// <remarks>
+    /// Una factura emitida no se edita ni se borra: se anula. El cambio de estado y la devolución
+    /// de inventario ocurren en una sola transacción.
+    /// </remarks>
+    /// <param name="id" example="6">Número de factura.</param>
+    /// <response code="200">Factura anulada; el inventario se devolvió.</response>
+    /// <response code="404">La factura no existe.</response>
+    /// <response code="409">La factura ya estaba anulada; no se cambió nada.</response>
     [HttpPut("{id:int}/void")]
     [ProducesResponseType<Result<InvoiceDetailDto>>(200)]
     [ProducesResponseType<Result<object>>(404)]

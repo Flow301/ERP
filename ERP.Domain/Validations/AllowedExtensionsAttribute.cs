@@ -13,7 +13,7 @@ public class AllowedExtensionsAttribute : ValidationAttribute
         _extensions = extensions;
     }
     protected override ValidationResult? IsValid(object? value, ValidationContext
-   validationContext)
+    validationContext)
     {
         // Un valor vacío no se valida aquí: eso es tarea de [Required]
         if (value is not string fileName || string.IsNullOrWhiteSpace(fileName))
@@ -25,5 +25,6 @@ public class AllowedExtensionsAttribute : ValidationAttribute
         ErrorMessage ?? $"La imagen debe tener una de estas extensiones: {string.Join(", ",
        _extensions)}.",
         new[] { validationContext.MemberName! });
+
     }
 }

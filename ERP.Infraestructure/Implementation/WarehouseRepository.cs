@@ -14,108 +14,83 @@ public class WarehouseRepository : IWarehouseRepository
         _context = context;
     }
 
-    // =====================================================================
-    // Lectura (AsNoTracking: solo se leen, no se modifican)
-    // =====================================================================
-
     public async Task<IEnumerable<Warehouse>> GetAllAsync()
     {
-        var result = await _context.Warehouse
+        return await _context.Set<Warehouse>()
             .AsNoTracking()
             .OrderBy(w => w.IdWarehouse)
             .ToListAsync();
-
-        return result;
     }
 
-    public async Task<IEnumerable<Warehouse>> GetPaginationAsync(int pageNumber, int pageSize)
+    public async Task<IEnumerable<Warehouse>> GetPaginationAsync(
+        int pageNumber,
+        int pageSize)
     {
-        var result = await _context.Warehouse
+        return await _context.Set<Warehouse>()
             .AsNoTracking()
-            .OrderBy(w => w.IdWarehouse) // Skip/Take siempre sobre un orden definido
+            .OrderBy(w => w.IdWarehouse)
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
-
-        return result;
     }
 
-    // Total de registros: lo necesita la paginación para calcular TotalPages
     public async Task<int> CountAsync()
     {
-        var result = await _context.Warehouse.CountAsync();
-
-        return result;
+        return await _context.Set<Warehouse>().CountAsync();
     }
 
     public async Task<Warehouse?> GetByIdAsync(int id)
     {
-        var result = await _context.Warehouse
+        return await _context.Set<Warehouse>()
             .AsNoTracking()
             .FirstOrDefaultAsync(w => w.IdWarehouse == id);
-
-        return result;
     }
-
-    // =====================================================================
-    // Verificaciones (AnyAsync → SELECT CASE WHEN EXISTS(...): no trae filas)
-    // =====================================================================
 
     public async Task<bool> ExistsAsync(int id)
     {
-        var result = await _context.Warehouse
+        return await _context.Set<Warehouse>()
             .AnyAsync(w => w.IdWarehouse == id);
-
-        return result;
     }
 
-    // ¿Otra bodega ya usa este nombre? En el PUT se excluye la propia bodega,
-    // así puede guardarse sin cambiar el nombre. (La intercalación de SQL Server no distingue mayúsculas.)
+    // Regla de negocio: nombre de bodega único.
+    // excludeId: al editar, la propia bodega no cuenta como duplicado
     public async Task<bool> ExistsByNameAsync(string name, int? excludeId = null)
     {
         var result = await _context.Warehouse
-            .AnyAsync(w => w.WarehouseName == name
-                && (excludeId == null || w.IdWarehouse != excludeId));
+            .AnyAsync(w => w.WarehouseName == name.Trim()
+                        && (excludeId == null || w.IdWarehouse != excludeId));
 
         return result;
     }
 
-    // ¿Algún producto está en esta bodega? (relación 1:N por Product.IdWarehouse)
     public async Task<bool> HasProductsAsync(int id)
     {
-        var result = await _context.Product
+        return await _context.Set<Product>()
             .AnyAsync(p => p.IdWarehouse == id);
-
-        return result;
     }
-
-    // =====================================================================
-    // Escritura (siempre async y con un solo SaveChangesAsync por operación)
-    // =====================================================================
 
     public async Task AddAsync(Warehouse warehouse)
     {
-        // IdWarehouse es ValueGeneratedNever (no es IDENTITY): el siguiente número se calcula con LINQ
-        var lastId = await _context.Warehouse.MaxAsync(w => (int?)w.IdWarehouse) ?? 0;
-        warehouse.IdWarehouse = lastId + 1;
+        warehouse.WarehouseName = warehouse.WarehouseName.Trim();
 
-        _context.Warehouse.Add(warehouse);
+        _context.Set<Warehouse>().Add(warehouse);
         await _context.SaveChangesAsync();
     }
 
     public async Task UpdateAsync(Warehouse warehouse)
     {
-        // Update marca todas las columnas como modificadas (PUT = reemplazo completo)
-        _context.Warehouse.Update(warehouse);
+        warehouse.WarehouseName = warehouse.WarehouseName.Trim();
+
+        _context.Set<Warehouse>().Update(warehouse);
         await _context.SaveChangesAsync();
     }
 
     public async Task DeleteAsync(int id)
     {
-        // ExecuteDeleteAsync envía un DELETE directo a SQL Server: no carga la entidad
-        // y no necesita SaveChangesAsync
-        await _context.Warehouse
-            .Where(w => w.IdWarehouse == id)
-            .ExecuteDeleteAsync();
+        var warehouse = await _context.Set<Warehouse>()
+            .FirstAsync(w => w.IdWarehouse == id);
+
+        _context.Set<Warehouse>().Remove(warehouse);
+        await _context.SaveChangesAsync();
     }
 }

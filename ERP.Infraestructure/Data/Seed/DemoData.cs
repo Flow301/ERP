@@ -1,5 +1,4 @@
 ﻿using ERP.Domain.Entities;
-using Microsoft.AspNetCore.Identity;
 
 namespace ERP.Infraestructure.Data.Seed
 {
@@ -17,15 +16,18 @@ namespace ERP.Infraestructure.Data.Seed
         // ---------- Usuarios vendedores ----------
         public static List<User> Sellers()
         {
-            var hasher = new PasswordHasher<User>();
             var sellers = new List<User>
-        {
-            new() { IdUser = 2, IdRole = SeedIds.RoleVendedor, Login = "vendedor1", FullName = "María Rodríguez", Email = "maria@tienda.com", Status = true },
-            new() { IdUser = 3, IdRole = SeedIds.RoleVendedor, Login = "vendedor2", FullName = "Carlos González", Email = "carlos@tienda.com", Status = true },
-            new() { IdUser = 4, IdRole = SeedIds.RoleVendedor, Login = "vendedor3", FullName = "Ana Martínez", Email = "ana@tienda.com", Status = true }
-        };
-
-            sellers.ForEach(s => s.Password = hasher.HashPassword(s, DevSellerPassword));
+            {
+             new() { IdUser = 2, IdRole = SeedIds.RoleVendedor, Login = "vendedor1", FullName =
+            "María Rodríguez", Email = "maria@tienda.com", Status = true },
+             new() { IdUser = 3, IdRole = SeedIds.RoleVendedor, Login = "vendedor2", FullName =
+            "Carlos González", Email = "carlos@tienda.com", Status = true },
+             new() { IdUser = 4, IdRole = SeedIds.RoleVendedor, Login = "vendedor3", FullName =
+            "Ana Martínez", Email = "ana@tienda.com", Status = true }
+            };
+            // BCrypt. Cada llamada genera un salt distinto: los tres hashes son diferentes aunque la contraseña sea la misma
+            sellers.ForEach(s => s.Password = BCrypt.Net.BCrypt.HashPassword(DevSellerPassword,
+            workFactor: 12));
             return sellers;
         }
 

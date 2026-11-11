@@ -18,19 +18,22 @@ namespace ERP.Infraestructure.Data.Seed
         {
             // Idempotencia: si ya hay clientes, el seed de desarrollo ya se ejecutó
             if (await context.Set<Customer>().AnyAsync(ct))
-                return;
+            return;
+
             // Todo o nada: si Migrate dejó una transacción abierta se participa en ella;
             // si no, se abre una propia. Así nunca quedan datos a medias.
             await using var transaction = context.Database.CurrentTransaction is null
             ? await context.Database.BeginTransactionAsync(ct)
             : null;
+
             // 1. Entidades secundarias (sus FK apuntan a catálogos con IDs estables)
             context.Set<User>().AddRange(DemoData.Sellers());
             context.Set<Customer>().AddRange(DemoData.Customers());
             context.Set<Supplier>().AddRange(DemoData.Suppliers());
-            context.Set<Supplier>().AddRange(DemoData.MoreSuppliers()); // NUEVO: 11 al 100
+            context.Set<Supplier>().AddRange(DemoData.MoreSuppliers());
             context.Set<Product>().AddRange(DemoData.Products());
             await context.SaveChangesAsync(ct);
+
             // 2. Relación Product–Supplier generada a partir de SupplierByCategory
             var supplierIds = await context.Set<Supplier>()
             .ToDictionaryAsync(s => s.SupplierName, s => s.IdSupplier, ct);
@@ -44,8 +47,10 @@ namespace ERP.Infraestructure.Data.Seed
                 IdProduct = p.IdProduct,
                 IdSupplier = supplierIds[DemoData.SupplierByCategory[p.IdCategory]]
             });
+
             context.Set<ProductSupplier>().AddRange(productSuppliers);
             await context.SaveChangesAsync(ct);
+
             // 3. Entidades operativas: facturas y detalle
             var sellerIds = await context.Set<User>()
             .Where(u => u.IdRole == SeedIds.RoleVendedor)
@@ -58,6 +63,7 @@ namespace ERP.Infraestructure.Data.Seed
             var catalog = await context.Set<Product>()
             .Where(p => productNames.Contains(p.ProductName))
             .ToDictionaryAsync(p => p.ProductName, p => new { p.IdProduct, p.Price }, ct);
+
             // IdInvoice es ValueGeneratedNever: se calcula el siguiente número
             var nextInvoiceId = (await context.Set<Invoice>().MaxAsync(i => (int?)i.IdInvoice, ct) ?? 0) + 1;
             foreach (var demo in DemoData.Invoices)

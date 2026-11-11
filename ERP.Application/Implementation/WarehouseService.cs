@@ -4,6 +4,7 @@ using ERP.Domain.DTO.PatternResult;
 using ERP.Domain.Entities;
 using ERP.Infraestructure.Interfaces;
 using MapsterMapper;
+using static System.Net.Mime.MediaTypeNames;
 
 namespace ERP.Application.Implementation;
 
@@ -27,9 +28,9 @@ public class WarehouseService : IWarehouseService
 
     public async Task<Result<IEnumerable<WarehouseDto>>> GetAllAsync()
     {
-        var warehouses = await _repository.GetAllAsync();
+        var entities = await _repository.GetAllAsync();
 
-        var data = _mapper.Map<IEnumerable<WarehouseDto>>(warehouses);
+        var data = _mapper.Map<IEnumerable<WarehouseDto>>(entities);
 
         var result = Result<IEnumerable<WarehouseDto>>.Success(data);
 
@@ -42,10 +43,10 @@ public class WarehouseService : IWarehouseService
             return Result<IEnumerable<WarehouseDto>>.Failure(400, "Bad Request",
                 $"pageNumber must be 1 or more and pageSize between 1 and {MaxPageSize}!");
 
-        var warehouses = await _repository.GetPaginationAsync(pageNumber, pageSize);
+        var entities = await _repository.GetPaginationAsync(pageNumber, pageSize);
         var totalRecords = await _repository.CountAsync();
 
-        var data = _mapper.Map<IEnumerable<WarehouseDto>>(warehouses);
+        var data = _mapper.Map<IEnumerable<WarehouseDto>>(entities);
 
         var result = Result<IEnumerable<WarehouseDto>>.Paged(data, pageNumber, pageSize, totalRecords);
 
@@ -54,12 +55,12 @@ public class WarehouseService : IWarehouseService
 
     public async Task<Result<WarehouseDto>> GetByIdAsync(int id)
     {
-        var warehouse = await _repository.GetByIdAsync(id);
+        var entity = await _repository.GetByIdAsync(id);
 
-        if (warehouse is null)
+        if (entity is null)
             return Result<WarehouseDto>.Failure(404, "Not Found", $"Warehouse {id} doesn't exist!");
 
-        var data = _mapper.Map<WarehouseDto>(warehouse);
+        var data = _mapper.Map<WarehouseDto>(entity);
 
         var result = Result<WarehouseDto>.Success(data);
 
@@ -72,17 +73,18 @@ public class WarehouseService : IWarehouseService
 
     public async Task<Result<WarehouseDto>> AddAsync(WarehouseCreateDto warehouse)
     {
-        var name = warehouse.WarehouseName!.Trim();
+        var name = warehouse.WarehouseName.Trim();
 
-        // Regla de negocio: el nombre de la bodega no se repite (también hay un índice UNIQUE en la tabla)
+        // Regla de negocio: el nombre de la bodega no se puede repetir
         if (await _repository.ExistsByNameAsync(name))
-            return Result<WarehouseDto>.Failure(409, "Conflict", $"Ya existe una bodega con el nombre '{name}'.");
+            return Result<WarehouseDto>.Failure(409, "Conflict",
+                $"Ya existe una bodega con el nombre '{name}'.");
 
         // DTO de entrada → entidad
         var entity = _mapper.Map<Warehouse>(warehouse);
         entity.WarehouseName = name;
 
-        await _repository.AddAsync(entity);        // el repositorio asigna IdWarehouse
+        await _repository.AddAsync(entity);
 
         // Entidad → DTO de salida
         var data = _mapper.Map<WarehouseDto>(entity);
@@ -98,18 +100,21 @@ public class WarehouseService : IWarehouseService
 
     public async Task<Result<WarehouseDto>> UpdateAsync(int id, WarehouseUpdateDto warehouse)
     {
-        if (!await _repository.ExistsAsync(id))
+        // 1. 404: ¿existe la bodega que se edita?
+        var entity = await _repository.GetByIdAsync(id);
+
+        if (entity is null)
             return Result<WarehouseDto>.Failure(404, "Not Found", $"Warehouse {id} doesn't exist!");
 
-        var name = warehouse.WarehouseName!.Trim();
+        var name = warehouse.WarehouseName.Trim();
 
-        // El nombre no puede ser el de OTRA bodega; conservar el propio sí se permite
+        // 2. 409: misma regla, excluyendo a la propia bodega
         if (await _repository.ExistsByNameAsync(name, id))
-            return Result<WarehouseDto>.Failure(409, "Conflict", $"Ya existe una bodega con el nombre '{name}'.");
+            return Result<WarehouseDto>.Failure(409, "Conflict",
+                $"Ya existe una bodega con el nombre '{name}'.");
 
-        var entity = _mapper.Map<Warehouse>(warehouse);
-        entity.IdWarehouse = id;                   // el Id viene de la RUTA, nunca del body
         entity.WarehouseName = name;
+        entity.Address = warehouse.Address;
 
         await _repository.UpdateAsync(entity);
 
@@ -129,7 +134,7 @@ public class WarehouseService : IWarehouseService
         if (!await _repository.ExistsAsync(id))
             return Result<int>.Failure(404, "Not Found", $"Warehouse {id} doesn't exist!");
 
-        // Regla de negocio: no se elimina una bodega que tiene productos (Product.IdWarehouse)
+        // Regla de negocio: no se elimina una bodega que tiene productos asociados
         if (await _repository.HasProductsAsync(id))
             return Result<int>.Failure(409, "Conflict", $"Warehouse {id} has products and can't be deleted!");
 
