@@ -73,6 +73,10 @@ public class WarehouseRepository : IWarehouseRepository
     {
         warehouse.WarehouseName = warehouse.WarehouseName.Trim();
 
+        // IdWarehouse es ValueGeneratedNever (no es IDENTITY): el siguiente número se calcula con LINQ
+        var lastId = await _context.Set<Warehouse>().MaxAsync(w => (int?)w.IdWarehouse) ?? 0;
+        warehouse.IdWarehouse = lastId + 1;
+
         _context.Set<Warehouse>().Add(warehouse);
         await _context.SaveChangesAsync();
     }
