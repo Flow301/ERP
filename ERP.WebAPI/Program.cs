@@ -6,10 +6,12 @@ using ERP.Infraestructure.Data;
 using ERP.Infraestructure.Data.Seed;
 using ERP.Infraestructure.Implementation;
 using ERP.Infraestructure.Interfaces;
+using ERP.WebAPI;   // AuthorizationPolicies (la clase está en la raíz de ERP.WebAPI)
 using ERP.WebAPI.Handlers;
 using Mapster;
 using MapsterMapper;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -113,7 +115,49 @@ builder.Services
      NameClaimType = "name",
      RoleClaimType = "role" // la siguiente clase lo usa en [Authorize(Roles = "...")]
     };
+
+    // 401 y 403 con el mismo formato Result<T> que el resto de la API
+    options.Events = new JwtBearerEvents
+    {
+        // 401: no hay token, o es inválido o está vencido
+        OnChallenge = async context =>
+        {
+            context.HandleResponse();                                  // reemplaza la respuesta vacía por defecto
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            context.Response.Headers.WWWAuthenticate = "Bearer";      // indica qué tipo de credencial se espera
+            var result = Result<object>.Failure(401, "Unauthorized",
+                "Debe iniciar sesión: el token no se envió, es inválido o está vencido.");
+            await context.Response.WriteAsJsonAsync(result);
+        },
+
+        // 403: el token es válido, pero el rol no tiene permiso
+        OnForbidden = async context =>
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            var result = Result<object>.Failure(403, "Forbidden",
+                "Su rol no tiene permiso para realizar esta operación.");
+            await context.Response.WriteAsJsonAsync(result);
+        }
+    };
  });
+
+// Autorización: las reglas de la matriz de permisos
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(AuthorizationPolicies.AdminOnly,
+        policy => policy.RequireRole("Administrador"));
+
+    options.AddPolicy(AuthorizationPolicies.ProductManagers,
+        policy => policy.RequireRole("Administrador", "Vendedor"));
+
+    options.AddPolicy(AuthorizationPolicies.SellerOnly,
+        policy => policy.RequireRole("Vendedor"));
+
+    // Protección por defecto: un endpoint sin [Authorize] ni [AllowAnonymous] igual exige token
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+});
 
 // RETO 9-1 -- Máximo 5 intentos de login por minuto
 builder.Services.AddRateLimiter(options =>
@@ -271,10 +315,11 @@ app.UseRateLimiter();             // 6. RETO 9-1: aplica el límite "login"
 
 if (app.Environment.IsDevelopment())
 {
-    app.MapOpenApi();
+    app.MapOpenApi().AllowAnonymous();                      // sin token
     app.MapScalarApiReference(options => options
         .WithTitle("ERP API")
-        .WithDefaultHttpClient(ScalarTarget.JavaScript, ScalarClient.Fetch));
+        .WithDefaultHttpClient(ScalarTarget.JavaScript, ScalarClient.Fetch))
+        .AllowAnonymous();                                  // sin token
 }
 
 app.UseHttpsRedirection();

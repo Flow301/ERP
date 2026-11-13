@@ -1,6 +1,7 @@
 ﻿using ERP.Application.Interfaces;
 using ERP.Domain.DTO;
 using ERP.Domain.DTO.PatternResult;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 namespace ERP.WebAPI.Controllers;
@@ -31,6 +32,7 @@ public class AuthController : ControllerBase
     /// <response code="401">Usuario o contraseña incorrectos, o usuario inactivo.</response>
     /// <response code="429">Más de 5 intentos de login en un minuto.</response>
     [HttpPost("login")]
+    [AllowAnonymous]                                    // sin token, es la puerta de entrada
     [EnableRateLimiting("login")] // RETO 9-1: máximo 5 intentos por minuto
     [ProducesResponseType<Result<LoginResponseDto>>(200)]
     [ProducesResponseType<Result<Dictionary<string, string[]>>>(400)]
@@ -44,22 +46,14 @@ public class AuthController : ControllerBase
     /// <summary>
     /// Devuelve el usuario que viene dentro del token enviado en el header Authorization.
     /// </summary>
-    /// <remarks>
-    /// Sirve para comprobar la autenticación: el middleware valida el token y llena User con sus claims.
-    /// Al autorizar este control se reemplaza por [Authorize].
-    /// </remarks>
     /// <response code="200">Token válido: datos leídos de sus claims.</response>
     /// <response code="401">No se envió token, o es inválido o está vencido.</response>
     [HttpGet("me")]
+    [Authorize]                                         // reemplaza el if
     [ProducesResponseType<Result<CurrentUserDto>>(200)]
     [ProducesResponseType<Result<object>>(401)]
     public IActionResult Me()
     {
-        if (User.Identity?.IsAuthenticated != true)
-        {
-            var unauthorized = Result<object>.Failure(401, "Unauthorized", "Token ausente, inválido o vencido.");
-        return StatusCode(unauthorized.Status, unauthorized);
-        }
         var data = new CurrentUserDto
         {
             IdUser = User.FindFirst("sub")?.Value,

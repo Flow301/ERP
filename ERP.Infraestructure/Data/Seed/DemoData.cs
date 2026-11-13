@@ -23,7 +23,8 @@ namespace ERP.Infraestructure.Data.Seed
              new() { IdUser = 3, IdRole = SeedIds.RoleVendedor, Login = "vendedor2", FullName =
             "Carlos González", Email = "carlos@tienda.com", Status = true },
              new() { IdUser = 4, IdRole = SeedIds.RoleVendedor, Login = "vendedor3", FullName =
-            "Ana Martínez", Email = "ana@tienda.com", Status = true }
+            "Ana Martínez", Email = "ana@tienda.com", Status = true },
+             new() { IdUser = 5, IdRole = SeedIds.RoleCajero, Login = "cajero1", FullName = "Luis Vega", Email = "luis@tienda.com", Status = true }
             };
             // BCrypt. Cada llamada genera un salt distinto: los tres hashes son diferentes aunque la contraseña sea la misma
             sellers.ForEach(s => s.Password = BCrypt.Net.BCrypt.HashPassword(DevSellerPassword,

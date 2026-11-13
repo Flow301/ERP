@@ -6,6 +6,7 @@ public static class SeedIds
 {
     public const int RoleAdministrador = 1;
     public const int RoleVendedor = 2;
+    public const int RoleCajero = 3;           // usuario de prueba sin permisos
     public const int InvoiceStatusPagada = 2;
     public const int PaymentTypeTarjetaCredito = 2;
     public const int CreditCardMastercard = 2;

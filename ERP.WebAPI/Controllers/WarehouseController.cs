@@ -1,6 +1,7 @@
 ﻿using ERP.Application.Interfaces;
 using ERP.Domain.DTO;
 using ERP.Domain.DTO.PatternResult;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ERP.WebAPI.Controllers;
@@ -11,6 +12,9 @@ namespace ERP.WebAPI.Controllers;
 [Route("api/[controller]")]
 [ApiController]
 [Produces("application/json")]
+[Authorize(Policy = AuthorizationPolicies.AdminOnly)]   // solo Administrador
+[ProducesResponseType<Result<object>>(401)]
+[ProducesResponseType<Result<object>>(403)]
 [ProducesResponseType<Result<object>>(StatusCodes.Status500InternalServerError)]   // aplica a TODAS las acciones
 public class WarehouseController : ControllerBase
 {

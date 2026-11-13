@@ -1,6 +1,7 @@
 ﻿using ERP.Application.Interfaces;
 using ERP.Domain.DTO;
 using ERP.Domain.DTO.PatternResult;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ERP.WebAPI.Controllers;
@@ -11,6 +12,9 @@ namespace ERP.WebAPI.Controllers;
 [Route("api/[controller]")]
 [ApiController]
 [Produces("application/json")]
+[Authorize(Policy = AuthorizationPolicies.ProductManagers)]   // consultar = Administrador o Vendedor
+[ProducesResponseType<Result<object>>(401)]
+[ProducesResponseType<Result<object>>(403)]
 [ProducesResponseType<Result<object>>(500)]
 public class InvoiceController : ControllerBase
 {
@@ -32,7 +36,10 @@ public class InvoiceController : ControllerBase
     [ProducesResponseType<Result<object>>(404)]
     public async Task<IActionResult> GetByIdAsync(int id)
     {
-        var result = await _service.GetByIdAsync(id);
+        var idUser = int.Parse(User.FindFirst("sub")!.Value);
+        var isAdmin = User.IsInRole("Administrador");
+
+        var result = await _service.GetByIdAsync(id, idUser, isAdmin);
 
         return StatusCode(result.Status, result);
     }
@@ -72,25 +79,27 @@ public class InvoiceController : ControllerBase
     /// Registra una factura completa (encabezado y líneas) como una sola operación.
     /// </summary>
     /// <remarks>
+    /// Solo el rol Vendedor. El vendedor de la factura se toma del token (claim sub), no del cuerpo.
     /// El precio de cada línea se toma del catálogo y el inventario se rebaja en la misma transacción.
-    /// Si una regla falla, no se guarda nada. Pagos con tarjeta (2 y 3) exigen IdCreditCard y los últimos 4 dígitos.
     /// </remarks>
     /// <param name="invoice">Encabezado y líneas de la venta.</param>
     /// <response code="201">Factura registrada; el encabezado Location apunta a GET api/Invoice/{id}.</response>
-    /// <response code="400">Datos inválidos o referencias que no existen (cliente, usuario, producto...).</response>
+    /// <response code="400">Datos inválidos o referencias que no existen.</response>
+    /// <response code="401">Sin token, o token inválido o vencido.</response>
+    /// <response code="403">El rol no es Vendedor.</response>
     /// <response code="409">Inventario insuficiente; no se guardó nada.</response>
     [HttpPost]
+    [Authorize(Policy = AuthorizationPolicies.SellerOnly)]
     [ProducesResponseType<Result<InvoiceDetailDto>>(201)]
     [ProducesResponseType<Result<Dictionary<string, string[]>>>(400)]
     [ProducesResponseType<Result<object>>(409)]
     public async Task<IActionResult> RegisterAsync([FromBody] InvoiceCreateDto invoice)
     {
-        var result = await _service.RegisterAsync(invoice);
-
+        // [Authorize] garantiza que hay un usuario autenticado con el claim "sub"
+        var idUser = int.Parse(User.FindFirst("sub")!.Value);
+        var result = await _service.RegisterAsync(invoice, idUser);
         if (!result.IsSuccess)
             return StatusCode(result.Status, result);
-
-        // 201 Created + encabezado Location: /api/Invoice/{id}
         return CreatedAtRoute("GetInvoiceById", new { id = result.Data!.IdInvoice }, result);
     }
 

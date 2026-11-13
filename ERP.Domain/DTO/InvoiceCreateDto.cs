@@ -13,11 +13,6 @@ public record class InvoiceCreateDto : IValidatableObject
     [RegularExpression(@"^\d{9,12}$", ErrorMessage = "La cédula del cliente debe tener entre 9 y 12 dígitos, sin guiones.")]
     public string? IdCustomer { get; set; }
 
-    /// <summary>Usuario (vendedor) que registra la venta.</summary>
-    /// <example>2</example>
-    [Range(1, int.MaxValue, ErrorMessage = "El usuario es obligatorio.")]
-    public int IdUser { get; set; }
-
     /// <summary>Tipo de pago: 1 Efectivo, 2 Tarjeta de Crédito, 3 Tarjeta de Débito, 4 Transferencia, 5 SINPE Móvil, 6 PayPal.</summary>
     /// <example>2</example>
     [Range(1, int.MaxValue, ErrorMessage = "El tipo de pago es obligatorio.")]

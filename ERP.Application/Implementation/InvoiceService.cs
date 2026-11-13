@@ -29,11 +29,16 @@ public class InvoiceService : IInvoiceService
     // CONSULTAS (ADAPTADAS: ahora devuelven Result<T>)
     // =====================================================================
 
-    public async Task<Result<InvoiceDetailDto>> GetByIdAsync(int id)
+    public async Task<Result<InvoiceDetailDto>> GetByIdAsync(int id, int idUser, bool isAdmin)
     {
         var invoice = await _repository.GetByIdAsync(id);
 
         if (invoice is null)
+            return Result<InvoiceDetailDto>.Failure(404, "Not Found", $"Invoice {id} doesn't exist!");
+
+        // RETO 9-2: un Vendedor solo ve sus facturas. Se responde 404 con el mismo mensaje
+        // que una factura inexistente: un 403 confirmaría que la factura existe.
+        if (!isAdmin && invoice.IdUser != idUser)
             return Result<InvoiceDetailDto>.Failure(404, "Not Found", $"Invoice {id} doesn't exist!");
 
         var data = _mapper.Map<InvoiceDetailDto>(invoice);
@@ -73,7 +78,7 @@ public class InvoiceService : IInvoiceService
     // NUEVO PROCESO DE NEGOCIO: REGISTRAR FACTURA
     // =====================================================================
 
-    public async Task<Result<InvoiceDetailDto>> RegisterAsync(InvoiceCreateDto invoice)
+    public async Task<Result<InvoiceDetailDto>> RegisterAsync(InvoiceCreateDto invoice, int idUser)
     {
         var idCustomer = invoice.IdCustomer!.Trim();
 
@@ -82,8 +87,9 @@ public class InvoiceService : IInvoiceService
         if (!await _repository.CustomerExistsAsync(idCustomer))
             return Result<InvoiceDetailDto>.Failure(400, "Bad Request", $"Customer {idCustomer} doesn't exist!");
 
-        if (!await _repository.ActiveUserExistsAsync(invoice.IdUser))
-            return Result<InvoiceDetailDto>.Failure(400, "Bad Request", $"User {invoice.IdUser} doesn't exist or is inactive!");
+        // El usuario del token también debe seguir activo (pudo desactivarse después del login)
+        if (!await _repository.ActiveUserExistsAsync(idUser))
+            return Result<InvoiceDetailDto>.Failure(400, "Bad Request", $"User {idUser} doesn't exist or is inactive!");
 
         if (!await _repository.PaymentTypeExistsAsync(invoice.IdPaymentType))
             return Result<InvoiceDetailDto>.Failure(400, "Bad Request", $"Payment type {invoice.IdPaymentType} doesn't exist!");
@@ -134,6 +140,7 @@ public class InvoiceService : IInvoiceService
 
         var entity = _mapper.Map<Invoice>(invoice);  // encabezado: los campos con el mismo nombre
         entity.IdCustomer = idCustomer;
+        entity.IdUser = idUser;                      // El vendedor es quien inició sesión
         entity.InvoiceDate = DateTime.Now;           // la fecha la pone el servidor, nunca el cliente
 
         var lineNumber = 1;
